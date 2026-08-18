@@ -56,7 +56,7 @@ body::after {
 
 .app {
   display: grid;
-  grid-template-rows: 52px 1fr;
+  grid-template-rows: 52px 1fr 30px;
   height: 100%;
 }
 
@@ -69,11 +69,14 @@ body::after {
 }
 
 .wordmark {
-  font-size: 12px;
-  font-weight: 700;
-  letter-spacing: 0.3em;
+  font-family: 'IBM Plex Mono', ui-monospace, 'Cascadia Code', Menlo, Consolas, monospace;
+  font-size: 14px;
+  font-weight: 500;
+  letter-spacing: 0.01em;
   white-space: nowrap;
 }
+
+.wordmark .ext { color: var(--accent); }
 
 .wordmark .tick { color: var(--accent); margin-right: 2px; }
 
@@ -152,6 +155,102 @@ input.song-title:focus { border-bottom-color: var(--line-strong); }
 }
 
 .body > * { min-height: 0; }
+
+/* ---------- footer ---------- */
+
+.footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 24px;
+  border-top: 1px solid var(--line);
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  color: var(--text-faint);
+}
+
+.footer-link {
+  background: none;
+  border: none;
+  padding: 0;
+  font: inherit;
+  font-family: 'IBM Plex Mono', ui-monospace, Menlo, Consolas, monospace;
+  color: var(--text-dim);
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.footer-link:hover { color: var(--accent); }
+
+/* ---------- splash: text gets typed, then becomes the thing ---------- */
+
+.splash {
+  position: fixed;
+  inset: 0;
+  z-index: 300;
+  background: var(--bg, #fcfbf8);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: opacity 0.38s ease;
+}
+
+.splash.out { opacity: 0; pointer-events: none; }
+
+.splash-logo {
+  display: inline-flex;
+  align-items: center;
+  gap: 18px;
+  font-family: 'IBM Plex Mono', ui-monospace, 'Cascadia Code', Menlo, Consolas, monospace;
+  font-size: 34px;
+  font-weight: 500;
+  letter-spacing: 0.01em;
+  color: var(--text);
+}
+
+.splash-text { display: inline-flex; align-items: center; }
+
+.splash-text .ext { color: inherit; transition: color 0.25s ease; }
+
+.splash.pop .splash-text .ext,
+.splash.out .splash-text .ext { color: var(--accent); }
+
+.splash.pop .splash-text { animation: splash-text-pop 0.3s ease; }
+
+@keyframes splash-text-pop {
+  50% { transform: scale(1.05); }
+}
+
+.splash .caret {
+  display: inline-block;
+  width: 0.52ch;
+  height: 1.05em;
+  margin-left: 3px;
+  background: var(--accent);
+  animation: splash-caret 0.9s steps(1) infinite;
+}
+
+@keyframes splash-caret {
+  50% { opacity: 0; }
+}
+
+.splash-slime {
+  display: inline-flex;
+  transform: scale(0);
+  transform-origin: center;
+}
+
+.splash.pop .splash-slime,
+.splash.out .splash-slime {
+  animation: splash-slime-pop 0.45s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+}
+
+@keyframes splash-slime-pop {
+  from { transform: scale(0); }
+  60% { transform: scale(2.5); }
+  to { transform: scale(2.1); }
+}
 
 .body {
   display: grid;
@@ -800,7 +899,7 @@ input.tempo-input::-webkit-inner-spin-button { -webkit-appearance: none; }
   body { overflow: visible; background: #fff; }
   body::after { display: none; }
   .app { display: block; }
-  .topbar, .controls, .transport { display: none !important; }
+  .topbar, .controls, .transport, .footer, .splash { display: none !important; }
   .body { display: block; }
   .score-scroll { overflow: visible; padding: 0; }
   .score-paper { max-width: none; }

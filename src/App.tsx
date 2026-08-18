@@ -313,7 +313,32 @@ export default function App() {
   const [tone, setTone] = useState<ToneId>(initial?.o ?? 'suitcase');
   const [copied, setCopied] = useState(false);
   const [currentBar, setCurrentBar] = useState<number | null>(null);
-  const [helpTopic, setHelpTopic] = useState<'notation' | 'groove' | null>(null);
+  const [helpTopic, setHelpTopic] = useState<'notation' | 'groove' | 'about' | null>(null);
+
+  // splash: the app's core loop in miniature — text gets typed, then becomes the thing
+  const SPLASH_NAME = 'chords.txt';
+  const reducedMotion = typeof window !== 'undefined' &&
+    window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+  const [splashPhase, setSplashPhase] = useState<'type' | 'pop' | 'out' | 'done'>(reducedMotion ? 'out' : 'type');
+  const [typedN, setTypedN] = useState(reducedMotion ? SPLASH_NAME.length : 0);
+  useEffect(() => {
+    if (splashPhase === 'type') {
+      if (typedN < SPLASH_NAME.length) {
+        const t = setTimeout(() => setTypedN(n => n + 1), typedN === 0 ? 380 : 72);
+        return () => clearTimeout(t);
+      }
+      const t = setTimeout(() => setSplashPhase('pop'), 320);
+      return () => clearTimeout(t);
+    }
+    if (splashPhase === 'pop') {
+      const t = setTimeout(() => setSplashPhase('out'), 620);
+      return () => clearTimeout(t);
+    }
+    if (splashPhase === 'out') {
+      const t = setTimeout(() => setSplashPhase('done'), 380);
+      return () => clearTimeout(t);
+    }
+  }, [splashPhase, typedN]);
 
   const playerRef = useRef<Player | null>(null);
   const scoreRef = useRef<HTMLDivElement | null>(null);
@@ -526,7 +551,7 @@ export default function App() {
   return (
     <div className="app">
       <header className="topbar">
-        <div className="wordmark"><Mascot playing={playing} bpm={tempo} /> QUICK LEAD SHEET</div>
+        <div className="wordmark"><Mascot playing={playing} bpm={tempo} /> chords<span className="ext">.txt</span></div>
         <div className="title-wrap">
           <input
             className="song-title"
@@ -811,13 +836,63 @@ export default function App() {
         </main>
       </div>
 
+      <footer className="footer">
+        <button className="footer-link" onClick={() => setHelpTopic('about')}>about</button>
+        <a className="footer-link" href="https://honake.github.io" target="_blank" rel="noopener noreferrer">
+          developer @honake
+        </a>
+      </footer>
+
+      {splashPhase !== 'done' && (
+        <div
+          className={`splash${splashPhase !== 'type' ? ' ' + splashPhase : ''}`}
+          onClick={() => setSplashPhase('done')}
+        >
+          <div className="splash-logo">
+            <span className="splash-slime"><Mascot playing={false} bpm={104} /></span>
+            <span className="splash-text">
+              {SPLASH_NAME.slice(0, Math.min(typedN, 6))}
+              <span className="ext">{typedN > 6 ? SPLASH_NAME.slice(6, typedN) : ''}</span>
+              {splashPhase === 'type' && <span className="caret" />}
+            </span>
+          </div>
+        </div>
+      )}
+
       {helpTopic && (
         <div className="modal-overlay" onClick={() => setHelpTopic(null)}>
           <div className="modal" onClick={e => e.stopPropagation()}>
             <div className="modal-head">
-              <span>{helpTopic === 'notation' ? 'Notation Guide' : 'Groove Guide'}</span>
+              <span>{helpTopic === 'notation' ? 'Notation Guide' : helpTopic === 'groove' ? 'Groove Guide' : 'About'}</span>
               <button className="modal-close" onClick={() => setHelpTopic(null)} title="Close">×</button>
             </div>
+            {helpTopic === 'about' && (
+              <div className="modal-body">
+                <p>
+                  <b>chords.txt</b> is a tiny web tool that turns a plain-text chord
+                  progression into a lead sheet and a fully-notated piano backing —
+                  instantly, as you type.
+                </p>
+                <h4>What it does</h4>
+                <table>
+                  <tbody>
+                    <tr><td><b>Write</b></td><td>Type chords like <code>| Gm9 C13 | Fmaj9 |</code> and get an engraved lead sheet plus a two-hand piano score.</td></tr>
+                    <tr><td><b>Groove</b></td><td>Styled comping (Jazz / Neo-Soul / Pop / Ballad) with voice leading, tensions, feels from swing to shuffled 16ths, and musical fills.</td></tr>
+                    <tr><td><b>Kime</b></td><td>Anticipations (<code>&gt;C7</code>), stabs (<code>C7!</code>) and rhythm figures (<code>[3-3-10]</code>) for band-style hits.</td></tr>
+                    <tr><td><b>Play</b></td><td>In-browser playback with several keyboard tones, metronome, looping, and click-to-seek on the score.</td></tr>
+                    <tr><td><b>Share</b></td><td>Export MIDI, PNG or print-ready PDF; share any song as a URL.</td></tr>
+                  </tbody>
+                </table>
+                <p>Free, no sign-up — everything runs in your browser.</p>
+                <h4>Credits</h4>
+                <p>
+                  Notation engraved with VexFlow (Bravura &amp; Petaluma fonts).
+                  Grand piano samples from the Salamander Grand Piano by Alexander
+                  Holm (CC-BY 3.0). Built by{' '}
+                  <a href="https://honake.github.io" target="_blank" rel="noopener noreferrer">honake</a>.
+                </p>
+              </div>
+            )}
             {helpTopic === 'groove' && (
               <div className="modal-body">
                 <h4>What each control does</h4>
