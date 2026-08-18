@@ -492,214 +492,332 @@ export function generateSong(bars: BarSpec[], styleId: StyleId, seed: number, se
     }
   }
 
-  // --- fills (オブリ): pickup runs walking into the next chord's top note ---
+  // --- fills (オブリ): melodic answers & pickups in the holes between chords ---
+  // Modeled on real comping practice (Red Garland / Wynton Kelly call-&-response,
+  // gospel runs in 3rds & 6ths, neo-soul pentatonic flurries):
+  //   response — a self-contained answer to the chord just played: starts in the
+  //     hole after the attack (usually on an offbeat), sings on pentatonic/blues
+  //     material of that chord, has a contour peak, lands on a stable tone, and
+  //     leaves a breath before the next chord arrives.
+  //   pickup — a run converging on the next chord's top voice. Enclosures and
+  //     chromatic cells are spice here, not the whole diet.
   if (settings.fills > 0) {
     const flat: { chord: Chord; abs: number; stab: boolean; fig: boolean }[] = [];
     bars.forEach((bar, bi) =>
       bar.segments.forEach(s => flat.push({ chord: s.chord, abs: bi * 16 + s.startSixteenth, stab: !!s.stab, fig: !!bar.figure })));
     const step = settings.feel === 'sixteenth' || settings.feel === 'shuffle16' ? 1 : 2;
+    const eighthFeel = settings.feel === 'swing8' || settings.feel === 'straight8';
+    const swingFeel = settings.feel === 'swing8';
 
+    //   s = scale steps · c = chromatic semitones · d = 16ths (default: grid step)
+    //   v = velocity offset (negative = ghost/grace)
+    type LickTok = { s?: number; c?: number; d?: number; v?: number };
+
+    // Swing 8ths lives on the triplet grid: 16ths only as a [1,1,2] cell starting
+    // on a beat; every other note must sit on the 8th grid.
+    const swingSafe = (toks: LickTok[], startAbs: number) => {
+      const ds = toks.map(t => t.d ?? step);
+      let pos = startAbs;
+      for (let k = 0; k < ds.length; k++) {
+        if (ds[k] === 1) {
+          if (pos % 4 === 0 && ds[k + 1] === 1 && ds[k + 2] === 2) { pos += 4; k += 2; }
+          else return false;
+        } else {
+          if (pos % 2 !== 0) return false;
+          pos += ds[k];
+        }
+      }
+      return true;
+    };
+
+    // ---- pickup licks: notes BEFORE the target, s/c relative to the NEXT chord's top voice
+    const LICKS: Record<string, LickTok[][]> = {
+      gospel: [
+        [{ s: -3 }, { s: -2 }, { s: -1 }],                                        // pentatonic climb
+        [{ s: -2 }, { s: -1 }, { c: -1 }],                                        // 1-2-b3-3 blue slide
+        [{ s: 1 }, { s: -2 }, { s: -1 }],                                         // over-under turn
+        [{ s: -4 }, { s: -3 }, { s: -2 }, { s: -1 }],                             // long stairway
+        [{ s: 2 }, { s: 1 }, { s: -1 }, { c: -1 }],                               // over the top, slide in
+        [{ s: -2, d: 1, v: -14 }, { s: -1, d: 1 }, { c: -1, d: 2 }],              // grace roll (triplet cell)
+        [{ c: -1, d: 1, v: -16 }, { s: -1, d: 1 }, { s: -2, d: 2 }, { s: -1, d: 2 }], // crush + rock back
+        [{ s: -3, d: 1 }, { s: -2, d: 1 }, { s: -1, d: 2 }],                      // triplet climb
+        [{ s: 1, d: 1 }, { s: -1, d: 1 }, { s: -2, d: 2 }, { s: -1, d: 4 }],      // turn, then sit on the lead-in
+      ],
+      blues: [
+        [{ s: 3 }, { s: 2 }, { s: 1 }],                                           // falling off the top
+        [{ s: -1 }, { s: 1 }, { c: 1 }],                                          // curl from above
+        [{ s: 2 }, { s: 1 }, { c: -1 }],                                          // drop, then slide in
+        [{ s: 4 }, { s: 3 }, { s: 2 }, { s: 1 }],                                 // long tumble
+        [{ c: -2, d: 1, v: -16 }, { c: -1, d: 1 }, { s: 1, d: 2 }, { c: -1, d: 2 }], // crush into the blue note
+        [{ s: 3, d: 1 }, { s: 2, d: 1 }, { s: 1, d: 2 }],                         // triplet tumble
+        [{ s: -1, d: 1 }, { c: -1, d: 1 }, { s: -1, d: 2 }],                      // hammer flick
+        [{ s: 1, d: 2 }, { s: 1, d: 1, v: -12 }, { c: -1, d: 1 }],                // repeated-note stutter
+      ],
+      jazz: [
+        [{ s: 2 }, { s: 1 }, { c: 1 }],                                           // bebop descent
+        [{ s: -3 }, { s: -2 }, { s: -1 }],                                        // arpeggio pickup
+        [{ s: 3 }, { s: 2 }, { s: 1 }, { c: 1 }],                                 // longer bebop descent
+        [{ s: 4 }, { s: 3 }, { s: 2 }, { s: 1 }],                                 // cascade
+        [{ s: -2 }, { s: -1 }, { c: 2 }, { c: -1 }],                              // scale up into enclosure (spice)
+        [{ s: 1, d: 1 }, { c: -1, d: 1 }, { s: 1, d: 2 }],                        // gruppetto turn (triplet)
+        [{ s: -2, d: 2 }, { s: -1, d: 1 }, { c: -1, d: 1 }],                      // ride up + chromatic snap
+        [{ s: 2, d: 1 }, { s: 1, d: 1 }, { c: 1, d: 1 }, { c: -1, d: 1 }],        // fast bebop cell
+      ],
+      contemporary: [
+        [{ s: -4 }, { s: -2 }, { s: -1 }],                                        // wide pentatonic rip
+        [{ s: 2 }, { s: -1 }, { s: 1 }],                                          // over-under, 4ths flavor
+        [{ s: -2 }, { s: 1 }, { s: -1 }],                                         // weave
+        [{ s: -1, d: 1, v: -14 }, { s: -2, d: 1 }, { s: -1, d: 2 }],              // grace drag (triplet cell)
+        [{ s: -5, d: 1 }, { s: -3, d: 1 }, { s: -2, d: 1 }, { s: -1, d: 1 }],     // fast 16th rip
+        [{ s: -6, d: 1 }, { s: -4, d: 1 }, { s: -3, d: 1 }, { s: -2, d: 1 }, { s: -1, d: 2 }], // big rip
+        [{ s: 1, d: 1, v: -12 }, { s: -1, d: 1 }, { s: -2, d: 2 }, { s: -1, d: 2 }], // flicked weave
+      ],
+    };
+
+    // ---- response licks: s/c offsets FROM the current chord's top voice (0 = re-strike it).
+    // Contours, not runs-to-a-target: fall / arc / turn / rip / sigh.
+    // A long last note is the phrase landing on a stable tone.
+    const RESPONSES: Record<string, LickTok[][]> = {
+      gospel: [
+        [{ s: 0 }, { s: -1 }, { s: -2 }, { s: -3, d: step * 2 }],                 // penta fall (3rds/6ths under)
+        [{ s: 1 }, { s: 0 }, { s: -1 }, { s: -2, d: step * 2 }],                  // over the top, settle
+        [{ s: -4, d: 1, v: -10 }, { s: -3, d: 1 }, { s: -2, d: 1 }, { s: -1, d: 1 }, { s: 0, d: 4, v: 4 }], // shout rip
+        [{ c: -1, d: 1, v: -16 }, { c: 0, d: 1 }, { s: -1, d: 2 }, { s: -2, d: step * 2 }], // crush, then amen
+        [{ s: -2 }, { s: -1, d: step * 2 }],                                      // short sigh
+        [{ s: -1 }, { s: -2, d: 2 }],                                              // quick sigh (fits half-bar chords)
+      ],
+      blues: [
+        [{ s: 0 }, { s: -1 }, { s: -2 }, { s: -4, d: step * 2, v: -4 }],          // fall to the floor
+        [{ c: -1, d: 1, v: -14 }, { c: 0, d: 1 }, { s: -2, d: step * 2 }],        // hammer, then drop
+        [{ s: 0, d: 1 }, { s: 0, d: 1, v: -10 }, { s: 0, d: 2, v: -4 }],          // triplet chop
+        [{ s: 1 }, { s: 0 }, { s: -1 }, { s: 0, d: step * 2 }],                   // curl back home
+        [{ s: -1 }, { s: -2, d: step * 2 }],                                      // sigh
+        [{ s: 1 }, { s: 0, d: 2 }],                                                // quick curl (fits half-bar chords)
+      ],
+      jazz: [
+        [{ s: 0 }, { s: 1 }, { s: 0 }, { s: -2, d: step * 2 }],                   // singable answer (5-6-5-3)
+        [{ s: 0 }, { s: -1 }, { s: -2 }, { s: -3, d: step * 2, v: -4 }],          // fall-off
+        [{ s: -2 }, { s: -1 }, { s: 0, d: step * 2, v: 3 }],                      // rising question
+        [{ s: 1 }, { s: 0 }, { s: -1 }, { s: 0, d: step * 2 }],                   // turn
+        [{ s: 0, d: 1 }, { s: 0, d: 1, v: -12 }, { s: -2, d: 2 }, { s: -1, d: step * 2 }], // bounce & settle
+        [{ s: 1 }, { s: -1, d: 2 }],                                               // quick answer (fits half-bar chords)
+        [{ s: -1 }, { s: -2, d: 2 }],                                              // quick fall (fits half-bar chords)
+      ],
+      contemporary: [
+        [{ s: -4, d: 1, v: -12 }, { s: -2, d: 1, v: -8 }, { s: -1, d: 1 }, { s: 0, d: 1 }, { s: -2, d: step * 2 }], // flurry
+        [{ s: 0 }, { s: -1 }, { s: -2, d: step * 2 }],                            // 4ths slide (dyads under)
+        [{ s: 0, d: 3, v: -4 }, { s: -1, d: 3, v: -6 }, { s: -2, d: step * 2 }],  // 3-against-4 hemiola
+        [{ s: 1, d: 1, v: -14 }, { s: 0, d: 1 }, { s: -2, d: 1, v: -10 }, { s: -1, d: step * 2 }], // ghost weave
+        [{ s: -1 }, { s: -3, d: step * 2 }],                                      // wide drop
+        [{ s: 1, v: -8 }, { s: -1, d: 2 }],                                        // quick flick (fits half-bar chords)
+      ],
+      basic: [
+        [{ s: 1 }, { s: 0, d: step * 2 }],                                        // upper-neighbor sigh
+        [{ s: -1 }, { s: -2, d: step * 2 }],
+        [{ s: 0 }, { s: -1 }, { s: -2, d: step * 2 }],
+      ],
+    };
+
+    let lastLick: unknown = null;   // never play the same phrase twice in a row
+    let lastGapFilled = false;      // and breathe: back-to-back holes rarely both get fills
     for (let i = 0; i + 1 < flat.length; i++) {
       const S = flat[i];
       const N = flat[i + 1];
-      if (S.stab || S.fig) continue; // kime figures ring — no fills on top of them
-      if (rnd() >= settings.fills) continue;
+      if (S.stab || S.fig) { lastGapFilled = false; continue; } // kime figures ring — no fills on top of them
+      const gate = settings.fills * (lastGapFilled ? 0.45 : 1);
+      if (rnd() >= gate) { lastGapFilled = false; continue; }
       // the next chord's first RH attack (may be pushed ahead of the barline)
-      const ahead = events.filter(e => e.hand === 'rh' && e.d > 0 && e.start >= N.abs - 4 && e.start <= N.abs + 6);
+      const ahead = events.filter(e => e.hand === 'rh' && !e.fill && e.d > 0 && e.start >= N.abs - 4 && e.start <= N.abs + 6);
       if (ahead.length === 0) continue;
       const attackStart = Math.min(...ahead.map(e => e.start));
       const targetTop = Math.max(...events.filter(e => e.hand === 'rh' && e.start === attackStart).map(e => e.midi));
-      // how much room there is before the attack (in 16ths)
       const maxSpace = attackStart - (S.abs + 2);
       if (maxSpace < 2) continue;
 
-      // pick the fill vocabulary
       const VOCABS = ['basic', 'blues', 'gospel', 'jazz', 'contemporary'] as const;
       const vocab = settings.fillStyle === 'mix'
         ? VOCABS[Math.floor(rnd() * VOCABS.length)]
         : settings.fillStyle;
-      const fromBelow = rnd() < 0.55;
-      const dir = fromBelow ? -1 : 1;
       const minorish = S.chord.quality === 'min' || S.chord.quality === 'hdim' || S.chord.quality === 'dim';
-      // scale behind the run
-      const scaleIvs =
-        vocab === 'gospel' || vocab === 'contemporary'
-          ? (minorish ? [0, 3, 5, 7, 10] : [0, 2, 4, 7, 9])                    // pentatonic
+
+      const makeScale = (ivs: number[]) => {
+        const pcs = ivs.map(iv => (S.chord.root + iv) % 12);
+        const inScale = (n: number) => pcs.includes(((n % 12) + 12) % 12);
+        const next = (from: number, d2: number) => {
+          let n = from + d2;
+          let guard = 0;
+          while (!inScale(n) && guard++ < 11) n += d2;
+          return n;
+        };
+        const stepFrom = (base: number, k: number) => {
+          let n = base;
+          const d2 = k > 0 ? 1 : -1;
+          for (let j = 0; j < Math.abs(k); j++) n = next(n, d2);
+          return n;
+        };
+        return { inScale, next, stepFrom };
+      };
+      const oddball = S.chord.quality === 'dim' || S.chord.quality === 'hdim' || S.chord.quality === 'aug';
+      const pent = oddball ? S.chord.tones : minorish ? [0, 3, 5, 7, 10] : [0, 2, 4, 7, 9];
+      // pickups ride chord/blues material toward the target
+      const pickupScale = makeScale(
+        vocab === 'gospel' || vocab === 'contemporary' ? pent
           : vocab === 'blues'
-            ? (minorish || S.chord.quality === 'dom'
-              ? [0, 3, 5, 6, 7, 10]                                            // minor blues (with b5)
-              : [0, 2, 3, 4, 7, 9])                                            // major blues (with b3)
-            : S.chord.tones;                                                   // basic & jazz: chord tones
-      const pcs = scaleIvs.map(iv => (S.chord.root + iv) % 12);
-      const inScale = (n: number) => pcs.includes(((n % 12) + 12) % 12);
-      const nextInScale = (from: number, d2: number) => {
-        let n = from + d2;
-        let guard = 0;
-        while (!inScale(n) && guard++ < 11) n += d2;
-        return n;
-      };
-      /** walk k scale steps away from the target (negative = below) */
-      const atStep = (k: number) => {
-        let n = targetTop;
-        const d2 = k > 0 ? 1 : -1;
-        for (let i = 0; i < Math.abs(k); i++) n = nextInScale(n, d2);
-        return n;
-      };
+            ? (oddball ? S.chord.tones
+              : minorish || S.chord.quality === 'dom' ? [0, 3, 5, 6, 7, 10] : [0, 2, 3, 4, 7, 9])
+            : S.chord.tones);
+      // answers SING — pentatonic/blues material even for jazz & basic
+      const respScale = oddball ? makeScale(S.chord.tones)
+        : vocab === 'jazz' || vocab === 'blues'
+          ? makeScale(minorish ? [0, 3, 5, 7, 10] : [0, 2, 3, 4, 7, 9])
+          : vocab === 'basic' ? makeScale(pent) : pickupScale;
 
-      // Signature licks — notes BEFORE the target, forward order.
-      //   s = scale steps from the target · c = chromatic semitones
-      //   d = length in 16ths (default: the feel's grid step) · v = velocity offset
-      // Runs of d:1 land on 16th positions, which the swing map turns into
-      // triplet timing under Swing 8ths; soft d:1 pickup notes act as grace notes.
-      type LickTok = { s?: number; c?: number; d?: number; v?: number };
-      const LICKS: Record<string, LickTok[][]> = {
-        gospel: [
-          [{ s: -3 }, { s: -2 }, { s: -1 }],                                        // pentatonic climb
-          [{ s: -2 }, { s: -1 }, { c: -1 }],                                        // 1-2-b3-3 blue slide
-          [{ s: 1 }, { s: -2 }, { s: -1 }],                                         // over-under turn
-          [{ s: -4 }, { s: -3 }, { s: -2 }, { s: -1 }],                             // long stairway
-          [{ s: 2 }, { s: 1 }, { s: -1 }, { c: -1 }],                               // over the top, slide in
-          [{ s: -2, d: 1, v: -14 }, { s: -1, d: 1 }, { c: -1, d: 2 }],              // grace roll (triplet cell)
-          [{ c: -1, d: 1, v: -16 }, { s: -1, d: 1 }, { s: -2, d: 2 }, { s: -1, d: 2 }], // crush + rock back
-          [{ s: -3, d: 1 }, { s: -2, d: 1 }, { s: -1, d: 2 }],                      // triplet climb
-          [{ s: -2, d: 2 }, { c: -1, d: 1 }, { s: -1, d: 1 }],                      // walk + 16th snap
-          [{ s: 1, d: 1 }, { s: -1, d: 1 }, { s: -2, d: 2 }, { s: -1, d: 4 }],      // turn, then sit on the lead-in
-        ],
-        blues: [
-          [{ s: 3 }, { s: 2 }, { s: 1 }],                                           // falling off the top
-          [{ c: -2 }, { c: -1 }],                                                   // chromatic smear up
-          [{ s: -1 }, { s: 1 }, { c: 1 }],                                          // curl from above
-          [{ s: 2 }, { s: 1 }, { c: -1 }],                                          // drop, then slide in
-          [{ s: 4 }, { s: 3 }, { s: 2 }, { s: 1 }],                                 // long tumble
-          [{ c: 2 }, { c: 1 }, { s: 1 }, { c: -1 }],                                // chromatic wrap
-          [{ c: -2, d: 1, v: -16 }, { c: -1, d: 1 }, { s: 1, d: 2 }, { c: -1, d: 2 }], // crush into the blue note
-          [{ s: 3, d: 1 }, { s: 2, d: 1 }, { s: 1, d: 2 }],                         // triplet tumble
-          [{ s: -1, d: 1 }, { c: -1, d: 1 }, { s: -1, d: 2 }],                      // hammer flick
-          [{ s: 1, d: 2 }, { s: 1, d: 1, v: -12 }, { c: -1, d: 1 }],                // repeated-note stutter
-          [{ s: 2, d: 1 }, { s: 1, d: 1 }, { c: -1, d: 2 }, { s: 1, d: 2 }, { c: -1, d: 2 }], // rolling blues cell
-        ],
-        jazz: [
-          [{ c: 1 }, { c: -1 }],                                                    // enclosure
-          [{ c: 2 }, { c: 1 }, { c: -1 }],                                          // double chromatic enclosure
-          [{ s: 2 }, { s: 1 }, { c: 1 }],                                           // bebop descent
-          [{ s: -3 }, { s: -2 }, { s: -1 }],                                        // arpeggio pickup
-          [{ s: 3 }, { s: 2 }, { s: 1 }, { c: 1 }],                                 // longer bebop descent
-          [{ s: 4 }, { s: 3 }, { s: 2 }, { s: 1 }],                                 // cascade
-          [{ s: -2 }, { s: -1 }, { c: 2 }, { c: -1 }],                              // scale up into enclosure
-          [{ c: 2, d: 1 }, { c: 1, d: 1 }, { c: -1, d: 2 }],                        // triplet enclosure
-          [{ s: 1, d: 1 }, { c: -1, d: 1 }, { s: 1, d: 2 }],                        // gruppetto turn (triplet)
-          [{ s: -1, d: 1 }, { c: 1, d: 1 }, { c: -1, d: 2 }],                       // under-over enclosure (triplet)
-          [{ s: 2, d: 1 }, { s: 1, d: 1 }, { c: 1, d: 1 }, { c: -1, d: 1 }],        // fast bebop cell
-          [{ s: -2, d: 2 }, { s: -1, d: 1 }, { c: -1, d: 1 }],                      // ride up + chromatic snap
-        ],
-        contemporary: [
-          [{ s: -4 }, { s: -2 }, { s: -1 }],                                        // wide pentatonic rip
-          [{ s: 2 }, { s: -1 }, { s: 1 }],                                          // over-under, 4ths flavor
-          [{ s: -2 }, { s: 1 }, { s: -1 }],                                         // weave
-          [{ s: 1 }, { s: -2 }, { s: 1 }, { s: -1 }],                               // syncopated weave
-          [{ s: -1, d: 1, v: -14 }, { s: -2, d: 1 }, { s: -1, d: 2 }],              // grace drag (triplet cell)
-          [{ s: -5, d: 1 }, { s: -3, d: 1 }, { s: -2, d: 1 }, { s: -1, d: 1 }],     // fast 16th rip
-          [{ s: -6, d: 1 }, { s: -4, d: 1 }, { s: -3, d: 1 }, { s: -2, d: 1 }, { s: -1, d: 2 }], // big rip
-          [{ s: 1, d: 1, v: -12 }, { s: -1, d: 1 }, { s: -2, d: 2 }, { s: -1, d: 2 }], // flicked weave
-          [{ s: -2, d: 1 }, { s: -1, d: 1 }, { s: 1, d: 1 }, { s: -1, d: 1 }],      // orbit
-        ],
-      };
-
-      // Swing feels live on the triplet grid: a d:1 note is only allowed inside
-      // a [1,1,2] triplet cell, and the run must stay beat-aligned.
-      const swingFeel = settings.feel === 'swing8';
-      const swingSafe = (toks: LickTok[], startAbs: number) => {
-        const ds = toks.map(t => t.d ?? step);
-        let pos = startAbs;
-        for (let k = 0; k < ds.length; k++) {
-          if (ds[k] === 1) {
-            // 16ths only as a [1,1,2] triplet cell starting on a beat
-            if (pos % 4 === 0 && ds[k + 1] === 1 && ds[k + 2] === 2) {
-              pos += 4; k += 2;
-            } else return false;
-          } else pos += ds[k];
+      /** harmonize, shape dynamics around the contour peak, and push one phrase */
+      const emit = (timed: { midi: number; d: number; v: number; t: number }[], scale: ReturnType<typeof makeScale>) => {
+        if (timed.some(n => n.midi < 40 || n.midi > 96)) return false;
+        // double-stops: gospel sings in 3rds & 6ths, contemporary in 4ths
+        const dyads: (number | null)[] = timed.map(n => {
+          if (n.v < 0) return null; // not on ghosts/graces
+          if (vocab === 'gospel' && rnd() < 0.6) {
+            const six = rnd() < 0.4;
+            let c2 = n.midi - (six ? 8 : 3);
+            let guard = 0;
+            while (!scale.inScale(c2) && guard++ < 4) c2 -= 1;
+            return guard <= 4 && n.midi - c2 <= (six ? 9 : 5) ? c2 : null;
+          }
+          if (vocab === 'contemporary' && rnd() < 0.35) {
+            const c2 = n.midi - 5;
+            return scale.inScale(c2) ? c2 : null;
+          }
+          return null;
+        });
+        // a same-pitch chord ATTACK during the phrase kills it…
+        for (let j = 0; j < timed.length; j++) {
+          for (const m of [timed[j].midi, dyads[j]]) {
+            if (m == null) continue;
+            if (events.some(e => e.hand === 'rh' && !e.fill && e.d > 0 && e.midi === m &&
+              e.start >= timed[j].t && e.start < timed[j].t + timed[j].d)) return false;
+          }
         }
+        // …while a ringing chord note is simply lifted where the fill takes over
+        for (let j = 0; j < timed.length; j++) {
+          for (const m of [timed[j].midi, dyads[j]]) {
+            if (m == null) continue;
+            for (const e of events) {
+              if (e.hand === 'rh' && !e.fill && e.midi === m && e.start < timed[j].t && e.start + e.d > timed[j].t) {
+                e.d = Math.max(1, timed[j].t - e.start);
+              }
+            }
+          }
+        }
+        // dynamics follow the contour: swell into the peak, place the landing
+        const peak = timed.reduce((b, n, j, arr) => (n.midi > arr[b].midi ? j : b), 0);
+        timed.forEach((n, j) => {
+          const rise = Math.max(0, 12 - 4 * Math.abs(j - peak));
+          const land = j === timed.length - 1 ? 5 : 0;
+          const vel = Math.max(26, Math.min(92,
+            Math.round(48 + rise + land + n.v + (rnd() - 0.5) * 12 * settings.humanize)));
+          events.push({ start: n.t, d: n.d, midi: n.midi, vel, hand: 'rh', fill: true });
+          const dy = dyads[j];
+          if (dy != null) events.push({ start: n.t, d: n.d, midi: dy, vel: Math.max(24, vel - 10), hand: 'rh', fill: true });
+        });
         return true;
       };
 
-      // resolve a lick (or fall back to a generative walk) into timed notes
-      interface FillNote { midi: number; d: number; v: number }
-      let notes: FillNote[] | null = null;
-      const lickPool = LICKS[vocab];
-      if (lickPool) {
-        const fitting = lickPool
-          .map(l => ({ toks: l, total: l.reduce((a, t) => a + (t.d ?? step), 0) }))
-          .filter(x => x.total <= maxSpace && (!swingFeel || swingSafe(x.toks, attackStart - x.total)));
-        if (fitting.length > 0 && rnd() < 0.85) {
-          const lick = fitting[Math.floor(rnd() * fitting.length)];
-          notes = lick.toks.map(tok => ({
-            midi: tok.c != null ? targetTop + tok.c : atStep(tok.s!),
-            d: tok.d ?? step,
-            v: tok.v ?? 0,
-          }));
+      const resolve = (toks: LickTok[], anchor: number, scale: ReturnType<typeof makeScale>, startT: number) => {
+        let acc = startT;
+        return toks.map(tok => {
+          const t = acc;
+          const d = tok.d ?? step;
+          acc += d;
+          return { midi: tok.c != null ? anchor + tok.c : scale.stepFrom(anchor, tok.s!), d, v: tok.v ?? 0, t };
+        });
+      };
+
+      // ---------- response: answer the chord that's sounding ----------
+      const tryResponse = () => {
+        const sCand = events.filter(e => e.hand === 'rh' && !e.fill && e.d > 0 && e.start >= S.abs - 2 && e.start <= S.abs + 6);
+        if (sCand.length === 0) return false;
+        const sAttack = Math.min(...sCand.map(e => e.start));
+        const anchor = Math.max(...events.filter(e => e.hand === 'rh' && !e.fill && e.start === sAttack).map(e => e.midi));
+        const pool = RESPONSES[vocab] ?? RESPONSES.basic;
+        const order = pool.map((_, j) => j).sort(() => rnd() - 0.5)
+          .sort((x, y) => (pool[x] === lastLick ? 1 : 0) - (pool[y] === lastLick ? 1 : 0));
+        for (const li of order) {
+          const toks = pool[li];
+          const total = toks.reduce((acc2, t) => acc2 + (t.d ?? step), 0);
+          const tMin = sAttack + 2;                             // let the chord speak first
+          const tMax = attackStart - Math.max(1, step) - total; // leave a breath before the next chord
+          if (tMax < tMin) continue;
+          const cands: number[] = [];
+          for (let t = tMin; t <= tMax; t++) {
+            if (eighthFeel && t % 2 !== 0) continue;
+            if (swingFeel && !swingSafe(toks, t)) continue;
+            // the pocket: no other chord attack inside the phrase
+            if (events.some(e => e.hand === 'rh' && !e.fill && e.d > 0 && e.start >= t && e.start < t + total)) continue;
+            cands.push(t);
+          }
+          if (cands.length === 0) continue;
+          // favor offbeat entries ("the and") and the middle of the hole
+          const ws = cands.map(t => (t % 4 === 2 ? 3 : t % 4 === 0 ? 1.5 : 2) * (1 + 0.15 * Math.min(t - tMin, tMax - t)));
+          let r = rnd() * ws.reduce((acc2, w) => acc2 + w, 0);
+          let t0 = cands[0];
+          for (let j = 0; j < cands.length; j++) { r -= ws[j]; if (r <= 0) { t0 = cands[j]; break; } }
+          if (emit(resolve(toks, anchor, respScale, t0), respScale)) { lastLick = toks; return true; }
         }
-      }
-      if (!notes) {
-        // generative walk (basic vocabulary & fallback)
-        const len = Math.min(Math.floor(maxSpace / step), 2 + Math.floor(rnd() * (step === 1 ? 3 : 2)));
-        if (len < 2) continue;
-        const backward: number[] = [];
-        let cur = vocab === 'basic' || vocab === 'jazz'
-          ? (fromBelow ? targetTop - 1 : targetTop + 2)
-          : nextInScale(targetTop, dir);
-        backward.push(cur);
-        while (backward.length < len) {
-          const steps = vocab === 'contemporary' && rnd() < 0.45 ? 2 : 1;
-          for (let s2 = 0; s2 < steps; s2++) cur = nextInScale(cur, dir);
+        return false;
+      };
+
+      // ---------- pickup: walk into the next chord's top voice ----------
+      const tryPickup = () => {
+        let notes: { midi: number; d: number; v: number }[] | null = null;
+        const lickPool = LICKS[vocab];
+        if (lickPool) {
+          const fitting = lickPool
+            .map(l => ({ toks: l, total: l.reduce((acc2, t) => acc2 + (t.d ?? step), 0) }))
+            .filter(x => x.total <= maxSpace && (!swingFeel || swingSafe(x.toks, attackStart - x.total)));
+          if (fitting.length > 0 && rnd() < 0.85) {
+            let lick = fitting[Math.floor(rnd() * fitting.length)];
+            if (lick.toks === lastLick && fitting.length > 1) lick = fitting[Math.floor(rnd() * fitting.length)];
+            lastLick = lick.toks;
+            notes = lick.toks.map(tok => ({
+              midi: tok.c != null ? targetTop + tok.c : pickupScale.stepFrom(targetTop, tok.s!),
+              d: tok.d ?? step,
+              v: tok.v ?? 0,
+            }));
+          }
+        }
+        if (!notes) {
+          // generative walk (basic vocabulary & fallback)
+          const len = Math.min(Math.floor(maxSpace / step), 2 + Math.floor(rnd() * (step === 1 ? 3 : 2)));
+          if (len < 2) return false;
+          const fromBelow = rnd() < 0.55;
+          const dir = fromBelow ? -1 : 1;
+          const backward: number[] = [];
+          // basic: neighbor-tone approach; everything else walks its scale (jazz = chord-tone arpeggio)
+          let cur = vocab === 'basic'
+            ? (fromBelow ? targetTop - 1 : targetTop + 2)
+            : pickupScale.next(targetTop, dir);
           backward.push(cur);
+          while (backward.length < len) {
+            const steps = vocab === 'contemporary' && rnd() < 0.45 ? 2 : 1;
+            for (let s2 = 0; s2 < steps; s2++) cur = pickupScale.next(cur, dir);
+            backward.push(cur);
+          }
+          notes = backward.reverse().map(m => ({ midi: m, d: step, v: 0 }));
         }
-        notes = backward.reverse().map(m => ({ midi: m, d: step, v: 0 }));
-      }
+        const total = notes.reduce((acc2, n) => acc2 + n.d, 0);
+        const fillStart = attackStart - total;
+        // keep the pocket: no other RH attacks inside the fill window
+        if (events.some(e => e.hand === 'rh' && !e.fill && e.d > 0 && e.start >= fillStart && e.start < attackStart)) return false;
+        let acc = fillStart;
+        const timed = notes.map(n => { const t = acc; acc += n.d; return { ...n, t }; });
+        return emit(timed, pickupScale);
+      };
 
-      const total = notes.reduce((a, n) => a + n.d, 0);
-      const fillStart = attackStart - total;
-      // keep the pocket: no other RH attacks inside the fill window
-      if (events.some(e => e.hand === 'rh' && e.d > 0 && e.start >= fillStart && e.start < attackStart)) continue;
-      if (notes.some(n => n.midi < 40 || n.midi > 96)) continue;
-
-      // note start times
-      let acc = fillStart;
-      const timed = notes.map(n => {
-        const t = acc;
-        acc += n.d;
-        return { ...n, t };
-      });
-
-      // double-stops: gospel adds 3rds, contemporary adds 4ths (not on grace notes)
-      const dyads: (number | null)[] = timed.map(n => {
-        if (n.v < 0) return null;
-        if (vocab === 'gospel' && rnd() < 0.55) {
-          let c2 = n.midi - 3;
-          let guard = 0;
-          while (!inScale(c2) && guard++ < 4) c2 -= 1;
-          return guard <= 4 && n.midi - c2 <= 5 ? c2 : null;
-        }
-        if (vocab === 'contemporary' && rnd() < 0.35) {
-          const c2 = n.midi - 5;
-          return inScale(c2) ? c2 : null;
-        }
-        return null;
-      });
-      // never double a still-ringing RH note at the same pitch
-      const clash = timed.some((n, j) =>
-        [n.midi, dyads[j]].some(m => m != null &&
-          events.some(e => e.hand === 'rh' && e.midi === m && e.start < n.t + n.d && e.start + e.d > n.t)));
-      if (clash) continue;
-
-      timed.forEach((n, j) => {
-        const vel = Math.max(26, Math.min(90,
-          Math.round(52 + (j / timed.length) * 14 + n.v + (rnd() - 0.5) * 14 * settings.humanize)));
-        events.push({ start: n.t, d: n.d, midi: n.midi, vel, hand: 'rh', fill: true });
-        const dy = dyads[j];
-        if (dy != null) {
-          events.push({ start: n.t, d: n.d, midi: dy, vel: Math.max(24, vel - 10), hand: 'rh', fill: true });
-        }
-      });
+      // answers first (they're what makes comping sing); pickups at boundaries
+      const respProb = vocab === 'basic' ? 0.5 : vocab === 'jazz' ? 0.55 : 0.6;
+      lastGapFilled = (rnd() < respProb && tryResponse()) || tryPickup();
     }
   }
 
