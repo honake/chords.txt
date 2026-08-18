@@ -25,19 +25,23 @@ export function inferKey(segs: SegLite[]): number {
     const scale = new Set(MAJOR_SCALE.map(iv => (k + iv) % 12));
     let score = 0;
     segs.forEach((s, i) => {
-      const core = [0, s.chord.tones.includes(4) ? 4 : 3, s.chord.tones.includes(10) ? 10 : 11]
-        .map(iv => (s.chord.root + iv) % 12);
-      const inKey = core.filter(pc => scale.has(pc)).length / core.length;
+      // score with the chord's actual pitch classes (sus chords have no fabricated 3rd)
+      const pcs = [...new Set(s.chord.tones.map(iv => (s.chord.root + iv) % 12))];
+      const inKey = pcs.filter(pc => scale.has(pc)).length / pcs.length;
       score += s.sixteenths * inKey;
-      // cadence bonuses
-      const next = segs[i + 1];
+      // cadence bonuses — progressions loop, so the last chord resolves to the first
+      const next = segs.length > 1 ? segs[(i + 1) % segs.length] : null;
+      const domish = (c: SegLite['chord']) =>
+        c.quality === 'dom' || (c.quality === 'sus' && c.tones.includes(10));
       if (next) {
-        const isDom = s.chord.quality === 'dom';
-        if (isDom && s.chord.root === (k + 7) % 12 && next.chord.root === k) score += 24; // V7 → I
+        if (domish(s.chord) && s.chord.root === (k + 7) % 12 && next.chord.root === k) score += 24; // V7 → I
         if (s.chord.root === (k + 2) % 12 && s.chord.quality === 'min' &&
-            next.chord.root === (k + 7) % 12 && next.chord.quality === 'dom') score += 12; // ii → V
+            next.chord.root === (k + 7) % 12 && domish(next.chord)) score += 12; // ii → V
       }
-      if (i === segs.length - 1 && s.chord.root === k) score += 16; // ends on tonic
+      if (i === segs.length - 1) {
+        if (s.chord.root === k) score += 8; // ends on tonic
+        if (domish(s.chord) && s.chord.root === (k + 7) % 12) score += 10; // half cadence / turnaround
+      }
       if (i === 0 && s.chord.root === k) score += 6;
     });
     if (score > bestScore) { bestScore = score; bestKey = k; }

@@ -87,9 +87,9 @@ function voiceLead(intervals: number[], rootPc: number, low: number, high: numbe
       let cost = 0;
       if (top > high) cost += (top - high) * 4;
       if (bottom < low) cost += (low - bottom) * 4;
-      if (top > high + 4 || bottom < low - 6) continue;
+      if (top > high + 4 || bottom < low - 1) continue;
       // never double a left-hand note at the exact same pitch
-      for (const n of notes) if (avoidNotes.includes(n)) cost += 4;
+      if (notes.some(n => avoidNotes.includes(n))) continue;
       if (prev && prev.length > 0) {
         // total voice movement: each new note to its nearest previous note
         for (const n of notes) {
@@ -173,7 +173,7 @@ function jazzVoice(c: Chord, ctx: VoiceCtx) {
       if (th != null) ivs.push(th);
     } else if (c.quality === 'min' && !ctx.harmony?.avoid.includes(17)) ivs.push(17);
   }
-  const low = Math.max(58 + ctx.register, lh[0] + 5);
+  const low = Math.max(58 + ctx.register, Math.max(...lh) + 1);
   const rh = voiceLead([...new Set(ivs)].slice(0, 5), c.root, low, Math.max(low + 12, 76 + ctx.register), ctx.prevRh, lh);
   return { lh, rh };
 }
@@ -204,7 +204,7 @@ function neosoulVoice(c: Chord, ctx: VoiceCtx) {
     }
   }
   if (ctx.tension >= 2 && wantsSharp11(c, ctx)) ivs.push(18);
-  const low = Math.max(60 + ctx.register, lh[0] + 5);
+  const low = Math.max(60 + ctx.register, Math.max(...lh) + 1);
   const rh = voiceLead([...new Set(ivs)].slice(0, 5), c.root, low, Math.max(low + 12, 80 + ctx.register), ctx.prevRh, lh);
   return { lh, rh };
 }
@@ -222,7 +222,7 @@ function popVoice(c: Chord, ctx: VoiceCtx) {
     const nine = pickNine(c, ctx);
     if (nine === 14) ivs.push(14);
   }
-  const low = Math.max(57 + ctx.register, lh[0] + 5);
+  const low = Math.max(57 + ctx.register, Math.max(...lh) + 1);
   const rh = voiceLead([...new Set(ivs)].slice(0, ctx.tension >= 2 ? 5 : 4), c.root, low, Math.max(low + 12, 74 + ctx.register), ctx.prevRh, lh);
   return { lh, rh };
 }
@@ -240,7 +240,7 @@ function balladVoice(c: Chord, ctx: VoiceCtx) {
     const nine = pickNine(c, ctx);
     if (nine === 14) ivs.push(14);
   }
-  const low = Math.max(55 + ctx.register, lh[0] + 5);
+  const low = Math.max(55 + ctx.register, Math.max(...lh) + 1);
   const rh = voiceLead([...new Set(ivs)].slice(0, 5), c.root, low, Math.max(low + 12, 74 + ctx.register), ctx.prevRh, lh);
   return { lh, rh };
 }
@@ -259,6 +259,10 @@ const jazzPatterns: Record<number, Pattern[]> = {
     { hits: [V(0, 16, 'lh', 'chord', 58), V(4, 4, 'rh', 'chord', 74), V(12, 4, 'rh', 'chord', 70)] },
     // funkier 16th comp
     { sixteenth: true, hits: [V(0, 16, 'lh', 'chord', 60), V(0, 3, 'rh', 'chord', 76), V(3, 3, 'rh', 'chord', 64), V(10, 3, 'rh', 'chord', 72), V(13, 3, 'rh', 'chord', 62)] },
+    // sparse "Red Garland" 2-and hit
+    { hits: [V(0, 16, 'lh', 'chord', 58), V(6, 2, 'rh', 'chord', 76)] },
+    // push-pull: and-of-1 into 3, tag on 4&
+    { hits: [V(0, 16, 'lh', 'chord', 60), V(2, 6, 'rh', 'chord', 72), V(8, 6, 'rh', 'chord', 68), V(14, 2, 'rh', 'chord', 74)] },
   ],
   8: [
     { hits: [V(0, 8, 'lh', 'chord', 60), V(0, 3, 'rh', 'chord', 76), V(6, 2, 'rh', 'chord', 68)] },
@@ -279,6 +283,10 @@ const neosoulPatterns: Record<number, Pattern[]> = {
     { sixteenth: true, hits: [V(0, 8, 'lh', 'bass', 66), V(8, 8, 'lh', 'chord', 58), V(0, 6, 'rh', 'chord', 64), V(6, 4, 'rh', 'chord', 60), V(10, 6, 'rh', 'chord', 63)] },
     { hits: [V(0, 16, 'lh', 'chord', 60), V(0, 12, 'rh', 'chord', 63), V(12, 4, 'rh', 'chord', 58)] },
     { sixteenth: true, hits: [V(0, 12, 'lh', 'bass', 66), V(12, 4, 'lh', 'chord', 56), V(0, 3, 'rh', 'chord', 66), V(3, 7, 'rh', 'chord', 60), V(10, 3, 'rh', 'chord', 62), V(13, 3, 'rh', 'chord', 58)] },
+    // Dilla-ish drag: late chord answers
+    { sixteenth: true, hits: [V(0, 6, 'lh', 'bass', 66), V(6, 10, 'lh', 'chord', 56), V(0, 2, 'rh', 'chord', 64), V(3, 3, 'rh', 'chord', 58), V(6, 4, 'rh', 'chord', 62), V(13, 3, 'rh', 'chord', 57)] },
+    // wide pad with a ghosted pickup into beat 3
+    { sixteenth: true, hits: [V(0, 16, 'lh', 'chord', 60), V(0, 7, 'rh', 'chord', 63), V(7, 1, 'rh', 'chord', 52), V(8, 8, 'rh', 'chord', 61)] },
   ],
   8: [
     { sixteenth: true, hits: [V(0, 8, 'lh', 'chord', 62), V(0, 3, 'rh', 'chord', 64), V(3, 5, 'rh', 'chord', 60)] },

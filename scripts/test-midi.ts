@@ -115,8 +115,30 @@ import { transposeSymbol } from '../src/lib/theory';
   for (const r of song.events.filter(e => e.hand === 'rh' && !e.fill)) {
     for (const l of lh) {
       const overlap = l.start < r.start + r.d && l.start + l.d > r.start;
-      if (overlap && l.midi === r.midi) throw new Error('cross-hand unison at ' + r.start + ' midi ' + r.midi);
-      if (overlap && r.midi < l.midi - 12) throw new Error('RH far below LH at ' + r.start);
+      if (overlap && r.midi <= l.midi) throw new Error('RH not above LH at ' + r.start + ' (rh ' + r.midi + ' vs lh ' + l.midi + ')');
+    }
+  }
+}
+// key inference on a looping vamp ending on V: must pick A, and iii (C#m7) must not get an out-of-key 9th (D#)
+{
+  const p = parseProgression('| Amaj9 | C#m7 F#m9 | [3-3-10] Dmaj9 Dmaj9 C#m7 | Bm9 E7sus4 |');
+  const flat = p.bars.flatMap(b => b.segments.map(s => ({ chord: s.chord, sixteenths: s.sixteenths })));
+  if (inferKey(flat) !== 9) throw new Error('vamp key should be A, got pc ' + inferKey(flat));
+  const st = STYLES.find(x => x.id === 'neosoul')!;
+  for (const seed of [1, 5, 9]) {
+    const song = generateSong(p.bars, 'neosoul', seed, { ...st.defaults, tension: 2, fills: 0, register: 0 });
+    const bad = song.events.filter(e => e.start >= 38 && e.start < 48 && e.midi % 12 === 3);
+    if (bad.length) throw new Error('D# on C#m7 in key A (seed ' + seed + ')');
+  }
+}
+// swing 8ths: fills stay on the triplet grid (no lone 16th pickups at the 4th subdivision)
+{
+  const p = parseProgression('| Cmaj7 A7 | Dm7 G7 | Em7 A7 | Dm7 G7 |');
+  const st = STYLES.find(x => x.id === 'jazz');
+  for (const seed of [1, 2, 3, 4, 5]) {
+    const song = generateSong(p.bars, 'jazz', seed, { ...st.defaults, feel: 'swing8', fills: 1 });
+    for (const e of song.events.filter(x => x.fill)) {
+      if (e.d === 1 && e.start % 4 === 3) throw new Error('16th pickup at sub3 under swing8 (start ' + e.start + ')');
     }
   }
 }

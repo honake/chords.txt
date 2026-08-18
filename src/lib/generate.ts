@@ -341,6 +341,7 @@ export function generateSong(bars: BarSpec[], styleId: StyleId, seed: number, se
         prevRh, prevRoot,
         tension: settings.tension,
         register: settings.register,
+        harmony: harmonyOf(nextAnalysis()),
       });
       prevRh = rh;
       prevRoot = lh[0] ?? prevRoot;
@@ -552,27 +553,38 @@ export function generateSong(bars: BarSpec[], styleId: StyleId, seed: number, se
           [{ s: -3 }, { s: -2 }, { s: -1 }],                                        // pentatonic climb
           [{ s: -2 }, { s: -1 }, { c: -1 }],                                        // 1-2-b3-3 blue slide
           [{ s: 1 }, { s: -2 }, { s: -1 }],                                         // over-under turn
-          [{ s: -2, d: 1, v: -14 }, { s: -1, d: 1 }, { c: -1, d: 2 }],              // grace roll into it
+          [{ s: -4 }, { s: -3 }, { s: -2 }, { s: -1 }],                             // long stairway
+          [{ s: 2 }, { s: 1 }, { s: -1 }, { c: -1 }],                               // over the top, slide in
+          [{ s: -2, d: 1, v: -14 }, { s: -1, d: 1 }, { c: -1, d: 2 }],              // grace roll (triplet cell)
           [{ c: -1, d: 1, v: -16 }, { s: -1, d: 1 }, { s: -2, d: 2 }, { s: -1, d: 2 }], // crush + rock back
-          [{ s: -3, d: 1 }, { s: -2, d: 1 }, { s: -1, d: 2 }],                      // triplet-feel climb
+          [{ s: -3, d: 1 }, { s: -2, d: 1 }, { s: -1, d: 2 }],                      // triplet climb
+          [{ s: -2, d: 2 }, { c: -1, d: 1 }, { s: -1, d: 1 }],                      // walk + 16th snap
+          [{ s: 1, d: 1 }, { s: -1, d: 1 }, { s: -2, d: 2 }, { s: -1, d: 4 }],      // turn, then sit on the lead-in
         ],
         blues: [
           [{ s: 3 }, { s: 2 }, { s: 1 }],                                           // falling off the top
           [{ c: -2 }, { c: -1 }],                                                   // chromatic smear up
           [{ s: -1 }, { s: 1 }, { c: 1 }],                                          // curl from above
           [{ s: 2 }, { s: 1 }, { c: -1 }],                                          // drop, then slide in
+          [{ s: 4 }, { s: 3 }, { s: 2 }, { s: 1 }],                                 // long tumble
+          [{ c: 2 }, { c: 1 }, { s: 1 }, { c: -1 }],                                // chromatic wrap
           [{ c: -2, d: 1, v: -16 }, { c: -1, d: 1 }, { s: 1, d: 2 }, { c: -1, d: 2 }], // crush into the blue note
           [{ s: 3, d: 1 }, { s: 2, d: 1 }, { s: 1, d: 2 }],                         // triplet tumble
           [{ s: -1, d: 1 }, { c: -1, d: 1 }, { s: -1, d: 2 }],                      // hammer flick
           [{ s: 1, d: 2 }, { s: 1, d: 1, v: -12 }, { c: -1, d: 1 }],                // repeated-note stutter
+          [{ s: 2, d: 1 }, { s: 1, d: 1 }, { c: -1, d: 2 }, { s: 1, d: 2 }, { c: -1, d: 2 }], // rolling blues cell
         ],
         jazz: [
           [{ c: 1 }, { c: -1 }],                                                    // enclosure
           [{ c: 2 }, { c: 1 }, { c: -1 }],                                          // double chromatic enclosure
           [{ s: 2 }, { s: 1 }, { c: 1 }],                                           // bebop descent
           [{ s: -3 }, { s: -2 }, { s: -1 }],                                        // arpeggio pickup
+          [{ s: 3 }, { s: 2 }, { s: 1 }, { c: 1 }],                                 // longer bebop descent
+          [{ s: 4 }, { s: 3 }, { s: 2 }, { s: 1 }],                                 // cascade
+          [{ s: -2 }, { s: -1 }, { c: 2 }, { c: -1 }],                              // scale up into enclosure
           [{ c: 2, d: 1 }, { c: 1, d: 1 }, { c: -1, d: 2 }],                        // triplet enclosure
-          [{ s: 1, d: 1 }, { c: -1, d: 1 }, { s: 1, d: 2 }],                        // gruppetto turn
+          [{ s: 1, d: 1 }, { c: -1, d: 1 }, { s: 1, d: 2 }],                        // gruppetto turn (triplet)
+          [{ s: -1, d: 1 }, { c: 1, d: 1 }, { c: -1, d: 2 }],                       // under-over enclosure (triplet)
           [{ s: 2, d: 1 }, { s: 1, d: 1 }, { c: 1, d: 1 }, { c: -1, d: 1 }],        // fast bebop cell
           [{ s: -2, d: 2 }, { s: -1, d: 1 }, { c: -1, d: 1 }],                      // ride up + chromatic snap
         ],
@@ -580,10 +592,30 @@ export function generateSong(bars: BarSpec[], styleId: StyleId, seed: number, se
           [{ s: -4 }, { s: -2 }, { s: -1 }],                                        // wide pentatonic rip
           [{ s: 2 }, { s: -1 }, { s: 1 }],                                          // over-under, 4ths flavor
           [{ s: -2 }, { s: 1 }, { s: -1 }],                                         // weave
-          [{ s: -1, d: 1, v: -14 }, { s: -2, d: 1 }, { s: -1, d: 2 }],              // grace drag
+          [{ s: 1 }, { s: -2 }, { s: 1 }, { s: -1 }],                               // syncopated weave
+          [{ s: -1, d: 1, v: -14 }, { s: -2, d: 1 }, { s: -1, d: 2 }],              // grace drag (triplet cell)
           [{ s: -5, d: 1 }, { s: -3, d: 1 }, { s: -2, d: 1 }, { s: -1, d: 1 }],     // fast 16th rip
+          [{ s: -6, d: 1 }, { s: -4, d: 1 }, { s: -3, d: 1 }, { s: -2, d: 1 }, { s: -1, d: 2 }], // big rip
           [{ s: 1, d: 1, v: -12 }, { s: -1, d: 1 }, { s: -2, d: 2 }, { s: -1, d: 2 }], // flicked weave
+          [{ s: -2, d: 1 }, { s: -1, d: 1 }, { s: 1, d: 1 }, { s: -1, d: 1 }],      // orbit
         ],
+      };
+
+      // Swing feels live on the triplet grid: a d:1 note is only allowed inside
+      // a [1,1,2] triplet cell, and the run must stay beat-aligned.
+      const swingFeel = settings.feel === 'swing8';
+      const swingSafe = (toks: LickTok[], startAbs: number) => {
+        const ds = toks.map(t => t.d ?? step);
+        let pos = startAbs;
+        for (let k = 0; k < ds.length; k++) {
+          if (ds[k] === 1) {
+            // 16ths only as a [1,1,2] triplet cell starting on a beat
+            if (pos % 4 === 0 && ds[k + 1] === 1 && ds[k + 2] === 2) {
+              pos += 4; k += 2;
+            } else return false;
+          } else pos += ds[k];
+        }
+        return true;
       };
 
       // resolve a lick (or fall back to a generative walk) into timed notes
@@ -593,7 +625,7 @@ export function generateSong(bars: BarSpec[], styleId: StyleId, seed: number, se
       if (lickPool) {
         const fitting = lickPool
           .map(l => ({ toks: l, total: l.reduce((a, t) => a + (t.d ?? step), 0) }))
-          .filter(x => x.total <= maxSpace);
+          .filter(x => x.total <= maxSpace && (!swingFeel || swingSafe(x.toks, attackStart - x.total)));
         if (fitting.length > 0 && rnd() < 0.85) {
           const lick = fitting[Math.floor(rnd() * fitting.length)];
           notes = lick.toks.map(tok => ({
