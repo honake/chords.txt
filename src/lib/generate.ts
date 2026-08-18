@@ -261,7 +261,8 @@ function choosePattern(pool: Pattern[], settings: GrooveSettings, rnd: () => num
   const wantsSixteenth = settings.feel === 'sixteenth' || settings.feel === 'shuffle16';
   const weights = pool.map((p, i) => {
     let w = 1 / (1 + Math.abs(p.hits.length - target));
-    if (p.sixteenth) w *= wantsSixteenth ? 2.2 : 0.35;
+    // swing 8ths lives on the swing grid — 16th-subdivision comps would break the feel entirely
+    if (p.sixteenth) w *= wantsSixteenth ? 2.2 : settings.feel === 'swing8' ? 0 : 0.35;
     else if (wantsSixteenth) w *= 0.8;
     if (i === lastIdx && pool.length > 1) w *= 0.25;
     return w;
@@ -414,7 +415,9 @@ export function generateSong(bars: BarSpec[], styleId: StyleId, seed: number, se
             const a = anatomy(seg.chord);
             const byIv = (iv: number | null) => iv == null ? undefined :
               firstChord.find(e => (((e.midi - seg.chord.root) % 12) + 12) % 12 === ((iv % 12) + 12) % 12);
-            const d1 = dMax >= 12 ? 6 : dMax >= 8 ? 4 : 3;
+            // swing 8ths: keep cliché resolutions on the 8th grid (odd 16ths would read as straight 16ths)
+            const evenGrid = settings.feel === 'swing8';
+            const d1 = dMax >= 12 ? 6 : dMax >= 8 ? 4 : evenGrid ? 2 : 3;
             const taken = (m: number) => firstChord.some(e => e.midi === m);
             const moves: (() => void)[] = [];
             const clicheOk = seg.chord.quality !== 'hdim' && seg.chord.quality !== 'dim';
@@ -447,7 +450,8 @@ export function generateSong(bars: BarSpec[], styleId: StyleId, seed: number, se
             if (seventhEv && seventhEv.d >= 8 && !taken(seventhEv.midi - 2)) {
               moves.push(() => {
                 const origD = seventhEv.d;
-                const late = Math.max(d1, origD - 4);
+                let late = Math.max(d1, origD - 4);
+                if (evenGrid && late % 2 === 1) late = Math.max(2, late - 1);
                 seventhEv.d = late;
                 events.push({ start: t0 + late, d: Math.max(2, origD - late), midi: seventhEv.midi - 2, vel: Math.max(30, seventhEv.vel - 10), hand: 'rh' });
               });

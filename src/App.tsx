@@ -52,7 +52,7 @@ const PRESETS: Preset[] = [
     name: 'III-VI-II-V (C)', group: 'JAZZ', key: 'C', style: 'jazz', tempo: 126,
     settings: { feel: 'swing8', fillStyle: 'jazz' },
     text: `| Em7 A7 | Dm7 G7 | Em7 A7 | Dm7 G7 |
-| [charleston] Em7 A7 | Dm7 G7 | [3-3-10] Cmaj7 | Dm7 >G7! |`,
+| [charleston] Em7 A7 | Dm7 G7 | [6-6-4] Cmaj7 | Dm7 >G7! |`,
   },
   {
     name: 'Rhythm Changes A (Bb)', group: 'JAZZ', key: 'Bb', style: 'jazz', tempo: 152,
@@ -61,11 +61,26 @@ const PRESETS: Preset[] = [
 | Fm7 Bb7 | Ebmaj7 Ab7 | Dm7 G7 | >Cm7 F7! |`,
   },
   {
+    // fast swing flattens out: shallow swing ratio, sparser fills
+    name: 'Fast Swing (C)', group: 'JAZZ', key: 'C', style: 'jazz', tempo: 224,
+    settings: { feel: 'swing8', swing: 0.58, fillStyle: 'jazz', fills: 0.35, density: 0.55, pushProb: 0.15 },
+    text: `| C6 A7 | Dm7 G7 | Em7 A7 | Dm7 G7 |
+| C7 | Fmaj7 | Em7 A7 | [charleston] Dm7 G7 |
+| C6 A7 | Dm7 G7 | Em7 A7 | Dm7 G7 |
+| Fmaj7 Bb7 | Em7 A7 | Dm7 G7 | >C6! |`,
+  },
+  {
+    name: 'Minor Swing (Dm)', group: 'JAZZ', key: 'F', style: 'jazz', tempo: 200,
+    settings: { feel: 'swing8', swing: 0.58, fillStyle: 'jazz', fills: 0.4, density: 0.6 },
+    text: `| Dm6 | Gm6 | Dm6 | A7 |
+| Dm6 | Gm6 | Bb7 A7 | >Dm6 A7! |`,
+  },
+  {
     name: 'Jazz Blues (F)', group: 'JAZZ', key: 'F', style: 'jazz', tempo: 144,
     settings: { feel: 'swing8', fillStyle: 'blues', fills: 0.5 },
     text: `| F7 | Bb7 | F7 | Cm7 F7 |
 | Bb7 | Bdim7 | F7 | Am7b5 D7 |
-| Gm7 | C7 | [3-3-10] F7 F7 D7 | Gm7 >C7 |`,
+| Gm7 | C7 | [6-6-4] F7 F7 D7 | Gm7 >C7 |`,
   },
   // ---- SOUL: shuffle 16ths, gospel fills ----
   {
@@ -73,6 +88,12 @@ const PRESETS: Preset[] = [
     settings: { feel: 'shuffle16', swing: 0.62, fillStyle: 'gospel' },
     text: `| C#m9 | F#13 | B7sus4 B13 | Emaj9 |
 | C#m9 | F#13 | [6-6-4] B7sus4 B7sus4 B13 | >Emaj9 |`,
+  },
+  {
+    name: 'Gospel Shout (C)', group: 'SOUL', key: 'C', style: 'neosoul', tempo: 152,
+    settings: { feel: 'shuffle16', swing: 0.6, fillStyle: 'gospel', fills: 0.5, density: 0.75, pushProb: 0.2 },
+    text: `| C C/E | F Fdim7 | C/G A7 | Dm7 G7 |
+| C C/E | F F#dim7 | [6-6-4] C/G A7 | Dm7 >G7 | >>C! |`,
   },
   {
     name: 'Gospel Turnaround (C)', group: 'SOUL', key: 'C', style: 'neosoul', tempo: 100,

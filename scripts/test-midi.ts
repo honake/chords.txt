@@ -142,6 +142,16 @@ import { transposeSymbol } from '../src/lib/theory';
     }
   }
 }
+// swing 8ths comping stays on the 8th/swing grid: no non-fill attack on an odd 16th
+{
+  const p = parseProgression('| Dm6 | Gm6 | Dm6 | A7 | Dm6 | Gm6 | Bb7 A7 | >Dm6 A7! |');
+  const st = STYLES.find(x => x.id === 'jazz')!;
+  for (const seed of [1, 2, 3, 4, 5, 6, 7, 8]) {
+    const song = generateSong(p.bars, 'jazz', seed, { ...st.defaults, feel: 'swing8', fills: 0.4, embellish: 0.5, pushProb: 0.2 });
+    const odd = song.events.filter(e => !e.fill && e.start % 2 === 1);
+    if (odd.length) throw new Error('swing8 comping off the swing grid (seed ' + seed + ', start ' + odd[0].start + ')');
+  }
+}
 // timing map is strictly increasing for every feel
 for (const feel of ['swing8', 'straight8', 'sixteenth', 'shuffle16'] as const) {
   for (const swing of [0.5, 0.62, 0.75]) {
