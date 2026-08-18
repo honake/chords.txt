@@ -1,4 +1,6 @@
-# Quick Lead Sheet — Backing Generator
+# chords.txt — type chords, hear the band
+
+https://honake.github.io/chords.txt/
 
 コード進行とテンポを入力するだけで、リードシートとピアノバッキング譜面を自動生成するツール。
 セッションでのオリジナル曲共有や、コード譜が苦手なキーボーディストのサポートに。
