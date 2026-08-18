@@ -110,7 +110,7 @@ input.song-title:focus { border-bottom-color: var(--line-strong); }
 
 .body {
   display: grid;
-  grid-template-columns: 344px 1fr;
+  grid-template-columns: 420px 1fr;
   min-height: 0;
 }
 
@@ -323,10 +323,10 @@ textarea.chords {
   border-radius: 2px;
   color: var(--text);
   font-family: var(--mono);
-  font-size: 12.5px;
-  line-height: 1.9;
-  padding: 10px 12px;
-  min-height: 124px;
+  font-size: 13.5px;
+  line-height: 2.0;
+  padding: 12px 14px;
+  min-height: 200px;
   resize: vertical;
   white-space: pre;
   outline: none;
