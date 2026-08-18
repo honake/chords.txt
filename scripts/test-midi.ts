@@ -105,6 +105,21 @@ import { transposeSymbol } from '../src/lib/theory';
     if (bad.length) throw new Error(st.id + ': natural 9 on C#m7b5');
   }
 }
+// hands must not collide: RH floor above LH root, no cross-hand unisons, no fills in figure bars
+{
+  const p = parseProgression('| [3-3-10] Dmaj9 Dmaj9 C#m7 | E7sus4 | Amaj9 |');
+  const st = STYLES.find(x => x.id === 'neosoul');
+  const song = generateSong(p.bars, 'neosoul', 9, { ...st.defaults, tension: 2, fills: 1, register: 0 });
+  if (song.events.some(e => e.fill && e.start < 16)) throw new Error('fill inside a figure bar');
+  const lh = song.events.filter(e => e.hand === 'lh');
+  for (const r of song.events.filter(e => e.hand === 'rh' && !e.fill)) {
+    for (const l of lh) {
+      const overlap = l.start < r.start + r.d && l.start + l.d > r.start;
+      if (overlap && l.midi === r.midi) throw new Error('cross-hand unison at ' + r.start + ' midi ' + r.midi);
+      if (overlap && r.midi < l.midi - 12) throw new Error('RH far below LH at ' + r.start);
+    }
+  }
+}
 // timing map is strictly increasing for every feel
 for (const feel of ['swing8', 'straight8', 'sixteenth', 'shuffle16'] as const) {
   for (const swing of [0.5, 0.62, 0.75]) {

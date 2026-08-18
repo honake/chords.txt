@@ -489,15 +489,15 @@ export function generateSong(bars: BarSpec[], styleId: StyleId, seed: number, se
 
   // --- fills (オブリ): pickup runs walking into the next chord's top note ---
   if (settings.fills > 0) {
-    const flat: { chord: Chord; abs: number; stab: boolean }[] = [];
+    const flat: { chord: Chord; abs: number; stab: boolean; fig: boolean }[] = [];
     bars.forEach((bar, bi) =>
-      bar.segments.forEach(s => flat.push({ chord: s.chord, abs: bi * 16 + s.startSixteenth, stab: !!s.stab })));
+      bar.segments.forEach(s => flat.push({ chord: s.chord, abs: bi * 16 + s.startSixteenth, stab: !!s.stab, fig: !!bar.figure })));
     const step = settings.feel === 'sixteenth' || settings.feel === 'shuffle16' ? 1 : 2;
 
     for (let i = 0; i + 1 < flat.length; i++) {
       const S = flat[i];
       const N = flat[i + 1];
-      if (S.stab) continue;
+      if (S.stab || S.fig) continue; // kime figures ring — no fills on top of them
       if (rnd() >= settings.fills) continue;
       // the next chord's first RH attack (may be pushed ahead of the barline)
       const ahead = events.filter(e => e.hand === 'rh' && e.d > 0 && e.start >= N.abs - 4 && e.start <= N.abs + 6);

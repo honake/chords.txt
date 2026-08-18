@@ -67,7 +67,7 @@ function bassNote(c: Chord, low: number, high: number, prevRoot: number | null):
  * Voice-led stacking: try every rotation/octave placement of the pitch-class set
  * and pick the one whose voices move least from the previous voicing.
  */
-function voiceLead(intervals: number[], rootPc: number, low: number, high: number, prev: number[] | null): number[] {
+function voiceLead(intervals: number[], rootPc: number, low: number, high: number, prev: number[] | null, avoidNotes: number[] = []): number[] {
   const pcs = [...new Set(intervals.map(iv => (rootPc + iv) % 12))];
   if (pcs.length === 0) return [near(rootPc, (low + high) / 2)];
   let best: number[] | null = null;
@@ -88,6 +88,8 @@ function voiceLead(intervals: number[], rootPc: number, low: number, high: numbe
       if (top > high) cost += (top - high) * 4;
       if (bottom < low) cost += (low - bottom) * 4;
       if (top > high + 4 || bottom < low - 6) continue;
+      // never double a left-hand note at the exact same pitch
+      for (const n of notes) if (avoidNotes.includes(n)) cost += 4;
       if (prev && prev.length > 0) {
         // total voice movement: each new note to its nearest previous note
         for (const n of notes) {
@@ -171,7 +173,8 @@ function jazzVoice(c: Chord, ctx: VoiceCtx) {
       if (th != null) ivs.push(th);
     } else if (c.quality === 'min' && !ctx.harmony?.avoid.includes(17)) ivs.push(17);
   }
-  const rh = voiceLead([...new Set(ivs)].slice(0, 5), c.root, 58 + ctx.register, 76 + ctx.register, ctx.prevRh);
+  const low = Math.max(58 + ctx.register, lh[0] + 5);
+  const rh = voiceLead([...new Set(ivs)].slice(0, 5), c.root, low, Math.max(low + 12, 76 + ctx.register), ctx.prevRh, lh);
   return { lh, rh };
 }
 
@@ -201,7 +204,8 @@ function neosoulVoice(c: Chord, ctx: VoiceCtx) {
     }
   }
   if (ctx.tension >= 2 && wantsSharp11(c, ctx)) ivs.push(18);
-  const rh = voiceLead([...new Set(ivs)].slice(0, 5), c.root, 60 + ctx.register, 80 + ctx.register, ctx.prevRh);
+  const low = Math.max(60 + ctx.register, lh[0] + 5);
+  const rh = voiceLead([...new Set(ivs)].slice(0, 5), c.root, low, Math.max(low + 12, 80 + ctx.register), ctx.prevRh, lh);
   return { lh, rh };
 }
 
@@ -218,7 +222,8 @@ function popVoice(c: Chord, ctx: VoiceCtx) {
     const nine = pickNine(c, ctx);
     if (nine === 14) ivs.push(14);
   }
-  const rh = voiceLead([...new Set(ivs)].slice(0, ctx.tension >= 2 ? 5 : 4), c.root, 57 + ctx.register, 74 + ctx.register, ctx.prevRh);
+  const low = Math.max(57 + ctx.register, lh[0] + 5);
+  const rh = voiceLead([...new Set(ivs)].slice(0, ctx.tension >= 2 ? 5 : 4), c.root, low, Math.max(low + 12, 74 + ctx.register), ctx.prevRh, lh);
   return { lh, rh };
 }
 
@@ -235,7 +240,8 @@ function balladVoice(c: Chord, ctx: VoiceCtx) {
     const nine = pickNine(c, ctx);
     if (nine === 14) ivs.push(14);
   }
-  const rh = voiceLead([...new Set(ivs)].slice(0, 5), c.root, 55 + ctx.register, 74 + ctx.register, ctx.prevRh);
+  const low = Math.max(55 + ctx.register, lh[0] + 5);
+  const rh = voiceLead([...new Set(ivs)].slice(0, 5), c.root, low, Math.max(low + 12, 74 + ctx.register), ctx.prevRh, lh);
   return { lh, rh };
 }
 
