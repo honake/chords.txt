@@ -218,6 +218,21 @@ function setupRenderer(el: HTMLDivElement, width: number, height: number) {
 
 interface HeaderFonts { title: string; sub: string; titleSize: number; subSize: number }
 
+function drawSectionLabel(ctx: ReturnType<Renderer['getContext']>, label: string, x: number, yTop: number, family: string) {
+  ctx.save();
+  ctx.setFont(family, 12, '700');
+  const w = ctx.measureText(label).width;
+  ctx.fillText(label, x + 7, yTop + 14);
+  ctx.beginPath();
+  ctx.moveTo(x, yTop);
+  ctx.lineTo(x + w + 14, yTop);
+  ctx.lineTo(x + w + 14, yTop + 19);
+  ctx.lineTo(x, yTop + 19);
+  ctx.lineTo(x, yTop);
+  ctx.stroke();
+  ctx.restore();
+}
+
 function drawHeader(
   ctx: ReturnType<Renderer['getContext']>, opts: ScoreOpts, width: number, subtitle: string, fonts: HeaderFonts,
 ) {
@@ -268,7 +283,7 @@ export function renderLeadSheet(el: HTMLDivElement, bars: BarSpec[], opts: Score
     if (cur.length > 0) lineBars.push(cur);
   }
   const lines = Math.max(1, lineBars.length);
-  const topY = 124;
+  const topY = sections.length > 0 ? 146 : 124;
   const lineH = 132;
   const height = topY + lines * lineH + 20;
   const { ctx } = setupRenderer(el, SCORE_WIDTH, height);
@@ -358,10 +373,7 @@ export function renderLeadSheet(el: HTMLDivElement, bars: BarSpec[], opts: Score
       const i = idxs[col];
       const bar = bars[i];
       if (sectionAt.has(i)) {
-        ctx.save();
-        ctx.setFont(JAZZ_TEXT, 14, '600');
-        ctx.fillText(sectionAt.get(i)!, MARGIN + col * (usable / barsPerLine) + 2, y - 26);
-        ctx.restore();
+        drawSectionLabel(ctx, sectionAt.get(i)!, MARGIN + col * (usable / barsPerLine), y - 52, JAZZ_TEXT);
       }
       const w = usable / barsPerLine;
       const x = MARGIN + col * w;
@@ -472,7 +484,7 @@ export function renderPianoScore(el: HTMLDivElement, song: Song, opts: ScoreOpts
   Flow.setMusicFont('Bravura');
   const bars = song.bars;
   const sectionAt = new Map((song.sections ?? []).map(s => [s.bar, s.label]));
-  const topY = 116;
+  const topY = (song.sections ?? []).length > 0 ? 140 : 116;
   const staffGap = 84;
   const systemH = 84 + staffGap + 92;
   const usable = SCORE_WIDTH - MARGIN * 2;
@@ -550,10 +562,7 @@ export function renderPianoScore(el: HTMLDivElement, song: Song, opts: ScoreOpts
       new StaveConnector(treble, bass).setType(StaveConnector.type.SINGLE_RIGHT).setContext(ctx).draw();
 
       if (sectionAt.has(i)) {
-        ctx.save();
-        ctx.setFont('Archivo, sans-serif', 12, '700');
-        ctx.fillText(sectionAt.get(i)!, x + 2, y - 30);
-        ctx.restore();
+        drawSectionLabel(ctx, sectionAt.get(i)!, x, y - 54, 'Archivo, sans-serif');
       }
       const rhBuilt = buildHandBar(sliced[i].rh, 'treble', opts.key);
       const lhBuilt = buildHandBar(sliced[i].lh, 'bass', opts.key);
