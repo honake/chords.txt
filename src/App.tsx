@@ -105,6 +105,62 @@ const FILL_STYLES: { id: GrooveSettings['fillStyle']; name: string }[] = [
   { id: 'mix', name: 'Mix' },
 ];
 
+// ---- the honake pixel slime (same sprite as honake.github.io) ----
+const SLIME_BASE = [
+  '....DDDD....',
+  '..DDWWWWDD..',
+  '.DWWWWWWWWD.',
+  '.DWWWWWWWWD.',
+  'DWWBWWWWBWWD',
+  'DWWWWWWWWWWD',
+  'DWWWWDDWWWWD',
+  'DWWWWWWWWWWD',
+  '.DWWWWWWWWD.',
+  '..DDDDDDDD..',
+];
+const SLIME_HAPPY = SLIME_BASE.map((r, i) => (i === 6 ? 'DWWWDDDDWWWD' : r));
+
+function SlimeSprite({ rows }: { rows: string[] }) {
+  const fill: Record<string, string> = { D: '#2b302e', W: '#ffffff', B: '#2c4bff' };
+  const px: React.ReactNode[] = [];
+  rows.forEach((row, y) => {
+    [...row].forEach((ch, x) => {
+      if (ch !== '.') px.push(<rect key={`${x}-${y}`} x={x} y={y} width={1.02} height={1.02} fill={fill[ch]} />);
+    });
+  });
+  return <svg viewBox="0 0 12 10" width="26" height="22" shapeRendering="crispEdges">{px}</svg>;
+}
+
+function Mascot() {
+  return (
+    <span className="mascot" title="hi!">
+      <span className="mascot-base"><SlimeSprite rows={SLIME_BASE} /></span>
+      <span className="mascot-happy"><SlimeSprite rows={SLIME_HAPPY} /></span>
+    </span>
+  );
+}
+
+const NoteIcon = () => (
+  <svg className="sec-ic" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.3">
+    <ellipse cx="4.4" cy="10.6" rx="2.3" ry="1.8" fill="currentColor" stroke="none" />
+    <path d="M6.6 10.4V2.6l4.6 1.4v2.4" strokeLinecap="round" />
+  </svg>
+);
+const GrooveIcon = () => (
+  <svg className="sec-ic" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round">
+    <path d="M1.5 3.5h11M1.5 7h11M1.5 10.5h11" />
+    <circle cx="5" cy="3.5" r="1.6" fill="var(--paper)" />
+    <circle cx="9.5" cy="7" r="1.6" fill="var(--paper)" />
+    <circle cx="4" cy="10.5" r="1.6" fill="var(--paper)" />
+  </svg>
+);
+const BookIcon = () => (
+  <svg className="sec-ic" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round">
+    <path d="M2 2.5h7.5a2 2 0 0 1 2 2v7H4a2 2 0 0 1-2-2v-7Z" />
+    <path d="M4.5 5h4.5M4.5 7.5h4.5" />
+  </svg>
+);
+
 interface DdOption { value: string; label: string; group?: string }
 
 /** Styled dropdown (native selects can't be themed). */
@@ -436,7 +492,7 @@ export default function App() {
   return (
     <div className="app">
       <header className="topbar">
-        <div className="wordmark"><span className="tick">▮</span> QUICK LEAD SHEET</div>
+        <div className="wordmark"><Mascot /> QUICK LEAD SHEET</div>
         <div className="title-wrap">
           <input
             className="song-title"
@@ -446,16 +502,13 @@ export default function App() {
             spellCheck={false}
           />
         </div>
-        <button className="btn sm" onClick={share} title="Copy a link that opens this exact song & settings">
-          {copied ? 'Copied!' : 'Share'}
-        </button>
       </header>
 
       <div className="body">
         <aside className="controls">
           <div className="section">
             <div className="section-label">
-              <span>Chords</span>
+              <span className="with-ic"><NoteIcon /> Chords</span>
               <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
                 <span className="aside">{barCount > 0 ? `${barCount} bars` : ''}</span>
                 <button
@@ -477,7 +530,7 @@ export default function App() {
               </div>
             )}
             <div className="row" style={{ marginTop: 8 }}>
-              <span className="row-label" title="Load an example progression (sets chords, key, groove & tempo)">Example</span>
+              <span className="row-label with-ic" title="Load an example progression (sets chords, key, groove & tempo)"><BookIcon /> Example</span>
               <Dropdown
                 value={null}
                 placeholder="Load…"
@@ -507,7 +560,7 @@ export default function App() {
 
           <div className="section">
             <div className="section-label">
-              <span>Groove</span>
+              <span className="with-ic"><GrooveIcon /> Groove</span>
               <button
                 className={`help-btn${helpTopic === 'groove' ? ' on' : ''}`}
                 onClick={() => setHelpTopic('groove')}
@@ -642,6 +695,14 @@ export default function App() {
               <span className="led" /> Click
             </button>
 
+            <button
+              className={`toggle${showFills ? ' on' : ''}`}
+              onClick={() => setShowFills(v => !v)}
+              title="Notate fills on the score (playback & MIDI always include them)"
+            >
+              <span className="led" /> Fills
+            </button>
+
             <div className="divider" />
 
             <div className="readout">
@@ -675,26 +736,18 @@ export default function App() {
 
             <div className="spacer" />
 
-            <button
-              className={`toggle${showFills ? ' on' : ''}`}
-              onClick={() => setShowFills(v => !v)}
-              title="Notate fills on the score (playback & MIDI always include them)"
-            >
-              <span className="led" /> Fills
-            </button>
-
-            <div className="divider" />
-
             <Dropdown
               value={null}
-              placeholder="Export"
+              placeholder={copied ? 'Link copied!' : 'Share / Export'}
               options={[
+                { value: 'share', label: 'Copy share link' },
                 { value: 'midi', label: 'MIDI (RH / LH tracks)' },
                 { value: 'png', label: 'PNG image' },
                 { value: 'pdf', label: 'PDF (print dialog)' },
               ]}
               onChange={v => {
-                if (v === 'midi') exportMidi();
+                if (v === 'share') share();
+                else if (v === 'midi') exportMidi();
                 else if (v === 'png') exportPng();
                 else window.print();
               }}

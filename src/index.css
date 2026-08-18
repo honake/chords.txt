@@ -77,6 +77,40 @@ body::after {
 
 .wordmark .tick { color: var(--accent); margin-right: 2px; }
 
+.wordmark { display: inline-flex; align-items: center; gap: 10px; }
+
+.mascot {
+  position: relative;
+  display: inline-flex;
+  width: 26px;
+  height: 22px;
+  cursor: pointer;
+}
+
+.mascot span { position: absolute; inset: 0; display: inline-flex; }
+
+.mascot .mascot-happy { opacity: 0; }
+
+.mascot:hover .mascot-base { opacity: 0; }
+.mascot:hover .mascot-happy { opacity: 1; }
+
+.mascot:hover { animation: mascot-hop 0.45s ease; }
+
+@keyframes mascot-hop {
+  0%, 100% { transform: translateY(0); }
+  35% { transform: translateY(-5px); }
+  70% { transform: translateY(0) scaleY(0.88) scaleX(1.1); }
+}
+
+.with-ic { display: inline-flex; align-items: center; gap: 7px; }
+
+.sec-ic {
+  width: 13px;
+  height: 13px;
+  opacity: 0.75;
+  flex-shrink: 0;
+}
+
 .topbar .title-wrap {
   flex: 1;
   display: flex;
