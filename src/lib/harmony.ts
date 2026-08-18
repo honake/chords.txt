@@ -140,8 +140,8 @@ export function analyzeProgression(segs: SegLite[]): ChordAnalysis[] {
       case 'hdim': {
         func = 'subdominant';
         scale = 'locrian';
-        tensions = [17, 20];
-        avoid = [13];
+        tensions = [17];              // the 11th is the one safe color on ø
+        avoid = [13, 14, 21];         // any 9th (and 13) clashes with locrian
         break;
       }
       case 'dim': {

@@ -121,7 +121,7 @@ function pickNine(c: Chord, ctx?: VoiceCtx): number | null {
     if (rec != null) return rec;
     if (h.avoid.includes(14)) return null;
   }
-  if (c.quality === 'aug') return null;
+  if (c.quality === 'aug' || c.quality === 'hdim') return null;
   return 14;
 }
 
@@ -179,7 +179,7 @@ function neosoulVoice(c: Chord, ctx: VoiceCtx) {
   const a = anatomy(c);
   const root = bassNote(c, 38, 50, ctx.prevRoot);
   const lh = [root];
-  const lhColor = ctx.tension >= 2 ? (a.seventh ?? a.fifth) : a.fifth;
+  const lhColor = c.quality === 'hdim' || ctx.tension >= 2 ? (a.seventh ?? a.fifth) : a.fifth;
   if (lhColor != null) lh.push(near((c.root + lhColor) % 12, root + 8));
 
   const seventh = a.seventh ?? a.sixth ?? null;

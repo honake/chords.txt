@@ -96,6 +96,15 @@ import { transposeSymbol } from '../src/lib/theory';
   if (transposeSymbol('C6/9', 2, 'D') !== 'D6/9') throw new Error('transpose 6/9 failed');
   if (transposeSymbol('Bb7#9', 1, 'B') !== 'B7#9') throw new Error('transpose alt failed');
 }
+// half-diminished must not get a natural 9th
+{
+  const p = parseProgression('| C#m7b5 | F#7 | Bm7 |');
+  for (const st of STYLES) {
+    const song = generateSong(p.bars, st.id, 5, { ...st.defaults, fills: 0, embellish: 0 });
+    const bad = song.events.filter(e => e.start < 16 && ((e.midi - 1) % 12 + 12) % 12 === 2);
+    if (bad.length) throw new Error(st.id + ': natural 9 on C#m7b5');
+  }
+}
 // timing map is strictly increasing for every feel
 for (const feel of ['swing8', 'straight8', 'sixteenth', 'shuffle16'] as const) {
   for (const swing of [0.5, 0.62, 0.75]) {

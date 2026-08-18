@@ -416,7 +416,8 @@ export function generateSong(bars: BarSpec[], styleId: StyleId, seed: number, se
             const d1 = dMax >= 12 ? 6 : dMax >= 8 ? 4 : 3;
             const taken = (m: number) => firstChord.some(e => e.midi === m);
             const moves: (() => void)[] = [];
-            const thirdEv = (a.third === 3 || a.third === 4) ? byIv(a.third) : undefined;
+            const clicheOk = seg.chord.quality !== 'hdim' && seg.chord.quality !== 'dim';
+            const thirdEv = clicheOk && (a.third === 3 || a.third === 4) ? byIv(a.third) : undefined;
             if (thirdEv && thirdEv.d >= 6 && a.third != null) {
               const iv3 = a.third;
               const target = thirdEv.midi;
