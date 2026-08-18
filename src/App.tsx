@@ -183,6 +183,50 @@ function Mascot({ playing, bpm }: { playing: boolean; bpm: number }) {
   );
 }
 
+// transport & topbar icons — same line style as the section icons
+const LoopIcon = () => (
+  <svg className="tg-ic" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M2.6 6v-0.6a2.9 2.9 0 0 1 2.9-2.9h6" />
+    <path d="M9.7 0.8 11.5 2.5 9.7 4.2" />
+    <path d="M11.4 8v0.6a2.9 2.9 0 0 1-2.9 2.9h-6" />
+    <path d="M4.3 9.8 2.5 11.5 4.3 13.2" />
+  </svg>
+);
+const ClickIcon = () => (
+  <svg className="tg-ic" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M5.4 1.6h3.2l2.2 10.8H3.2z" />
+    <path d="M6.8 9.2 10.4 3.4" />
+    <circle cx="10.5" cy="3.2" r="1" fill="currentColor" stroke="none" />
+  </svg>
+);
+const FillsIcon = () => (
+  <svg className="tg-ic" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round">
+    <ellipse cx="2.7" cy="11.6" rx="1.6" ry="1.25" fill="currentColor" stroke="none" />
+    <ellipse cx="6.9" cy="10" rx="1.6" ry="1.25" fill="currentColor" stroke="none" />
+    <ellipse cx="11.1" cy="8.4" rx="1.6" ry="1.25" fill="currentColor" stroke="none" />
+    <path d="M4.2 11.3V4.9M8.4 9.7V3.3M12.6 8.1V1.7" />
+    <path d="M4.2 4.9 12.6 1.7" strokeWidth="2.1" />
+  </svg>
+);
+const ShareIcon = () => (
+  <svg className="bar-ic" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M5.9 8.1 8.1 5.9" />
+    <path d="M6.6 3.9 8.1 2.4a2.55 2.55 0 0 1 3.6 3.6L10.2 7.5" />
+    <path d="M7.4 10.1 5.9 11.6a2.55 2.55 0 0 1-3.6-3.6L3.8 6.5" />
+  </svg>
+);
+const CheckIcon = () => (
+  <svg className="bar-ic" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M2.5 7.5 5.5 10.5 11.5 3.5" />
+  </svg>
+);
+const ExportIcon = () => (
+  <svg className="bar-ic" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M7 1.6v7.6" />
+    <path d="M4.2 6.6 7 9.4 9.8 6.6" />
+    <path d="M2.2 11.8h9.6" />
+  </svg>
+);
 const NoteIcon = () => (
   <svg className="sec-ic" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.3">
     <ellipse cx="4.4" cy="10.6" rx="2.3" ry="1.8" fill="currentColor" stroke="none" />
@@ -205,7 +249,7 @@ function Dropdown({ value, options, onChange, placeholder, menuAlign = 'right' }
   value: string | null;
   options: DdOption[];
   onChange: (v: string) => void;
-  placeholder?: string;
+  placeholder?: React.ReactNode;
   menuAlign?: 'left' | 'right';
 }) {
   const [open, setOpen] = useState(false);
@@ -567,12 +611,13 @@ export default function App() {
             spellCheck={false}
           />
         </div>
-        <button className="btn sm" onClick={share} title="Copy a link that opens this exact song & settings">
-          {copied ? 'Link copied!' : 'Share'}
+        <button className="btn sm icon-btn" onClick={share}
+          title={copied ? 'Link copied!' : 'Share — copy a link that opens this exact song & settings'}>
+          {copied ? <CheckIcon /> : <ShareIcon />}
         </button>
         <Dropdown
           value={null}
-          placeholder="Export"
+          placeholder={<ExportIcon />}
           options={[
             { value: 'midi', label: 'MIDI (RH / LH tracks)' },
             { value: 'png', label: 'PNG image' },
@@ -630,13 +675,6 @@ export default function App() {
                 options={KEYS.map(k => ({ value: k, label: k }))}
                 onChange={v => setKeyName(v as KeyName)}
               />
-            </div>
-            <div className="row">
-              <span className="row-label" title="Transpose every chord (and the key) by a semitone">Transpose</span>
-              <span style={{ display: 'inline-flex', gap: 6 }}>
-                <button className="btn sm" onClick={() => transpose(-1)}>♭</button>
-                <button className="btn sm" onClick={() => transpose(1)}>♯</button>
-              </span>
             </div>
           </div>
 
@@ -769,34 +807,36 @@ export default function App() {
               )}
             </button>
 
-            <button className={`toggle${loop ? ' on' : ''}`} onClick={toggleLoop}>
-              <span className="led" /> Loop
+            <button className={`icon-toggle${loop ? ' on' : ''}`} onClick={toggleLoop}
+              title="Loop playback">
+              <LoopIcon />
             </button>
 
-            <button className={`toggle${click ? ' on' : ''}`} onClick={toggleClick} title="Metronome">
-              <span className="led" /> Click
+            <button className={`icon-toggle${click ? ' on' : ''}`} onClick={toggleClick}
+              title="Metronome click">
+              <ClickIcon />
             </button>
 
             <button
-              className={`toggle${showFills ? ' on' : ''}`}
+              className={`icon-toggle${showFills ? ' on' : ''}`}
               onClick={() => setShowFills(v => !v)}
               title="Notate fills on the score (playback & MIDI always include them)"
             >
-              <span className="led" /> Fills
+              <FillsIcon />
             </button>
 
             <div className="divider" />
 
             <div className="readout">
               <span className="label">Tempo</span>
-              <input
+              <span className="value tempo-value">♩=<input
                 className="tempo-input"
                 type="number"
                 min={40}
                 max={240}
                 value={tempo}
                 onChange={e => setTempo(Math.max(30, Math.min(300, Number(e.target.value) || 120)))}
-              />
+              /></span>
             </div>
 
             <div className="readout">
@@ -810,21 +850,21 @@ export default function App() {
             </div>
 
             <div className="readout">
-              <span className="label">Position</span>
-              <span className="value">
-                {currentBar != null ? `${currentBar + 1}` : '–'} / {barCount || '–'}
+              <span className="label" title="Transpose every chord (and the key) by a semitone">Transpose</span>
+              <span className="transpose-btns">
+                <button className="btn sm" onClick={() => transpose(-1)} title="Down a semitone">♭</button>
+                <button className="btn sm" onClick={() => transpose(1)} title="Up a semitone">♯</button>
               </span>
             </div>
 
             <div className="spacer" />
-
-            <div className="tabs">
-              <button className={`tab${tab === 'lead' ? ' active' : ''}`} onClick={() => setTab('lead')}>Lead Sheet</button>
-              <button className={`tab${tab === 'piano' ? ' active' : ''}`} onClick={() => setTab('piano')}>Piano</button>
-            </div>
           </div>
 
           <div className="score-scroll">
+            <div className="sheet-tabs">
+              <button className={`sheet-tab${tab === 'lead' ? ' active' : ''}`} onClick={() => setTab('lead')}>Lead Sheet</button>
+              <button className={`sheet-tab${tab === 'piano' ? ' active' : ''}`} onClick={() => setTab('piano')}>Piano</button>
+            </div>
             <ScoreView
               mode={tab}
               song={song}
