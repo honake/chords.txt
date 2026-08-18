@@ -288,6 +288,11 @@ export default function App() {
     player.stop();
   }, [song, tempo, player]);
 
+  // keep the player's tone in sync (incl. the restored one on first load)
+  useEffect(() => {
+    player.setTone(tone);
+  }, [player, tone]);
+
   useEffect(() => {
     player.onPosition = bar => setCurrentBar(bar);
     player.onStop = () => {
@@ -310,6 +315,16 @@ export default function App() {
       player.stop();
     } else if (song) {
       player.start(song, tempo, loop);
+      setPlaying(true);
+    }
+  };
+
+  const playFromBar = (bar: number) => {
+    if (!song) return;
+    if (player.playing) {
+      player.seek(bar);
+    } else {
+      player.start(song, tempo, loop, bar);
       setPlaying(true);
     }
   };
@@ -704,6 +719,7 @@ export default function App() {
               feelName={feel.name}
               showFills={showFills}
               currentBar={currentBar}
+              onBarClick={playFromBar}
               containerRef={scoreRef}
             />
           </div>

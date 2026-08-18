@@ -509,6 +509,17 @@ export class Player {
 
   setClick(v: boolean) { this.click = v; }
 
+  /** Jump playback to the top of a bar (while playing). */
+  seek(bar: number) {
+    if (!this.ctx || !this.song || this.timer === null) return;
+    const beats = Math.max(0, bar) * 4;
+    this.cycle = 0;
+    this.startTime = this.ctx.currentTime + 0.06 - beats * this.secPerBeat;
+    this.nextEventIdx = this.schedule.findIndex(e => e.time >= beats * this.secPerBeat - 1e-6);
+    if (this.nextEventIdx < 0) this.nextEventIdx = this.schedule.length;
+    this.nextClickBeat = beats;
+  }
+
   setTone(id: ToneId) {
     if (id === this.toneId) return;
     this.toneId = id;
@@ -533,7 +544,7 @@ export class Player {
     }
   }
 
-  start(song: Song, bpm: number, loop: boolean) {
+  start(song: Song, bpm: number, loop: boolean, fromBar = 0) {
     this.stop();
     if (song.events.length === 0 || song.bars.length === 0) return;
     this.ensureCtx();
@@ -560,8 +571,11 @@ export class Player {
       })
       .sort((a, b) => a.time - b.time);
 
-    this.nextEventIdx = 0;
-    this.startTime = this.ctx!.currentTime + 0.12;
+    const fromBeats = Math.max(0, fromBar) * 4;
+    this.startTime = this.ctx!.currentTime + 0.12 - fromBeats * this.secPerBeat;
+    this.nextEventIdx = this.schedule.findIndex(e => e.time >= fromBeats * this.secPerBeat - 1e-6);
+    if (this.nextEventIdx < 0) this.nextEventIdx = this.schedule.length;
+    this.nextClickBeat = fromBeats;
     this.timer = window.setInterval(() => this.tick(), 30);
     this.tick();
     const uiTick = () => {

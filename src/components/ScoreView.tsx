@@ -14,10 +14,11 @@ interface Props {
   feelName: string;
   showFills: boolean;
   currentBar: number | null;
+  onBarClick?: (bar: number) => void;
   containerRef: React.RefObject<HTMLDivElement | null>;
 }
 
-export function ScoreView({ mode, song, keyName, title, tempo, styleName, feelName, showFills, currentBar, containerRef }: Props) {
+export function ScoreView({ mode, song, keyName, title, tempo, styleName, feelName, showFills, currentBar, onBarClick, containerRef }: Props) {
   const innerRef = useRef<HTMLDivElement>(null);
   const [geom, setGeom] = useState<ScoreGeom | null>(null);
 
@@ -80,9 +81,22 @@ export function ScoreView({ mode, song, keyName, title, tempo, styleName, feelNa
     );
   }
 
+  const handleClick = (e: React.MouseEvent) => {
+    if (!geom || !onBarClick) return;
+    const pageEl = (e.target as HTMLElement).closest('.score-page') as HTMLElement | null;
+    if (!pageEl || !innerRef.current) return;
+    const pages = [...innerRef.current.querySelectorAll('.score-page')];
+    const page = pages.indexOf(pageEl);
+    const rect = pageEl.getBoundingClientRect();
+    const X = ((e.clientX - rect.left) / rect.width) * geom.width;
+    const Y = ((e.clientY - rect.top) / rect.height) * geom.height;
+    const hit = geom.bars.find(b => b.page === page && X >= b.x && X <= b.x + b.w && Y >= b.y && Y <= b.y + b.h);
+    if (hit) onBarClick(hit.bar);
+  };
+
   return (
     <div className="score-paper" ref={containerRef}>
-      <div ref={innerRef} />
+      <div ref={innerRef} onClick={handleClick} style={{ cursor: onBarClick ? 'pointer' : undefined }} title="Click a bar to play from there" />
     </div>
   );
 }
