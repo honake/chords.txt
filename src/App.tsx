@@ -829,14 +829,14 @@ export default function App() {
 
             <div className="readout">
               <span className="label">Tempo</span>
-              <span className="value tempo-value">♩=<input
+              <input
                 className="tempo-input"
                 type="number"
                 min={40}
                 max={240}
                 value={tempo}
                 onChange={e => setTempo(Math.max(30, Math.min(300, Number(e.target.value) || 120)))}
-              /></span>
+              />
             </div>
 
             <div className="readout">
@@ -858,13 +858,14 @@ export default function App() {
             </div>
 
             <div className="spacer" />
+
+            <div className="tabs">
+              <button className={`tab${tab === 'lead' ? ' active' : ''}`} onClick={() => setTab('lead')}>Lead Sheet</button>
+              <button className={`tab${tab === 'piano' ? ' active' : ''}`} onClick={() => setTab('piano')}>Piano</button>
+            </div>
           </div>
 
           <div className="score-scroll">
-            <div className="sheet-tabs">
-              <button className={`sheet-tab${tab === 'lead' ? ' active' : ''}`} onClick={() => setTab('lead')}>Lead Sheet</button>
-              <button className={`sheet-tab${tab === 'piano' ? ' active' : ''}`} onClick={() => setTab('piano')}>Piano</button>
-            </div>
             <ScoreView
               mode={tab}
               song={song}
