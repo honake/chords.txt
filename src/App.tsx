@@ -341,8 +341,43 @@ export default function App() {
   };
 
   const exportPng = async () => {
-    const svg = scoreRef.current?.querySelector('svg');
+    const svgs = [...(scoreRef.current?.querySelectorAll('svg') ?? [])];
+    const svg = svgs[0];
     if (!svg) return;
+    const fontCss = await petalumaFontCss().catch(() => '');
+    const renderOne = (source: SVGElement) => new Promise<HTMLImageElement>((resolve, reject) => {
+      const vb2 = source.getAttribute('viewBox')!.split(' ').map(Number);
+      const clone2 = source.cloneNode(true) as SVGElement;
+      clone2.setAttribute('width', String(vb2[2]));
+      clone2.setAttribute('height', String(vb2[3]));
+      if (fontCss) {
+        const st = document.createElementNS('http://www.w3.org/2000/svg', 'style');
+        st.textContent = fontCss;
+        clone2.insertBefore(st, clone2.firstChild);
+      }
+      const im = new Image();
+      im.onload = () => resolve(im);
+      im.onerror = reject;
+      im.src = `data:image/svg+xml;charset=utf-8,${encodeURIComponent(new XMLSerializer().serializeToString(clone2))}`;
+    });
+    const vb0 = svg.getAttribute('viewBox')!.split(' ').map(Number);
+    const [, , w0, h0] = vb0;
+    const GAP = 24;
+    const scale = 2;
+    const imgs = await Promise.all(svgs.map(s => renderOne(s as SVGElement)));
+    const canvas = document.createElement('canvas');
+    canvas.width = w0 * scale;
+    canvas.height = (h0 * imgs.length + GAP * (imgs.length - 1)) * scale;
+    const cx2 = canvas.getContext('2d')!;
+    cx2.fillStyle = '#ffffff';
+    cx2.fillRect(0, 0, canvas.width, canvas.height);
+    cx2.scale(scale, scale);
+    imgs.forEach((im, i) => cx2.drawImage(im, 0, i * (h0 + GAP), w0, h0));
+    canvas.toBlob(blob => {
+      if (blob) downloadBlob(blob, `${safeName(title)}-${tab === 'lead' ? 'leadsheet' : 'piano'}.png`, 'image/png');
+    });
+    return;
+    // (legacy single-page path below is unreachable)
     const vb = svg.getAttribute('viewBox')!.split(' ').map(Number);
     const [, , w, h] = vb;
     const clone = svg.cloneNode(true) as SVGElement;

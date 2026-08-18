@@ -34,8 +34,7 @@ export function ScoreView({ mode, song, keyName, title, tempo, styleName, feelNa
       const g = mode === 'lead'
         ? renderLeadSheet(el, song.bars, opts, song.sections)
         : renderPianoScore(el, song, opts);
-      const svg = el.querySelector('svg');
-      if (svg) {
+      for (const svg of el.querySelectorAll('svg')) {
         svg.setAttribute('viewBox', `0 0 ${g.width} ${g.height}`);
         svg.removeAttribute('width');
         svg.removeAttribute('height');
@@ -50,9 +49,25 @@ export function ScoreView({ mode, song, keyName, title, tempo, styleName, feelNa
     }
   }, [song, mode, keyName, title, tempo, styleName, feelName, showFills]);
 
-  const hl = currentBar != null && geom
-    ? geom.bars.find(b => b.bar === currentBar)
-    : null;
+  // place the playback highlight inside the page that holds the current bar
+  useEffect(() => {
+    const el = innerRef.current;
+    if (!el) return;
+    for (const old of el.querySelectorAll('.bar-highlight')) old.remove();
+    if (currentBar == null || !geom) return;
+    const b = geom.bars.find(x => x.bar === currentBar);
+    if (!b) return;
+    const pageDiv = el.querySelectorAll('.score-page')[b.page] as HTMLElement | undefined;
+    if (!pageDiv) return;
+    pageDiv.style.position = 'relative';
+    const d = document.createElement('div');
+    d.className = 'bar-highlight';
+    d.style.left = `${(b.x / geom.width) * 100}%`;
+    d.style.top = `${(b.y / geom.height) * 100}%`;
+    d.style.width = `${(b.w / geom.width) * 100}%`;
+    d.style.height = `${(b.h / geom.height) * 100}%`;
+    pageDiv.appendChild(d);
+  }, [currentBar, geom]);
 
   if (!song || song.bars.length === 0) {
     return (
@@ -67,20 +82,7 @@ export function ScoreView({ mode, song, keyName, title, tempo, styleName, feelNa
 
   return (
     <div className="score-paper" ref={containerRef}>
-      <div style={{ position: 'relative' }}>
-        <div ref={innerRef} />
-        {hl && geom && (
-          <div
-            className="bar-highlight"
-            style={{
-              left: `${(hl.x / geom.width) * 100}%`,
-              top: `${(hl.y / geom.height) * 100}%`,
-              width: `${(hl.w / geom.width) * 100}%`,
-              height: `${(hl.h / geom.height) * 100}%`,
-            }}
-          />
-        )}
-      </div>
+      <div ref={innerRef} />
     </div>
   );
 }

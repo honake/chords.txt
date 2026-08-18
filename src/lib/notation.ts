@@ -9,11 +9,14 @@ import type { BarSpec, Song, NoteEvent, SectionMark } from './generate';
 import { getFigure } from './generate';
 
 export const SCORE_WIDTH = 1080;
+/** A4 aspect ratio (210 × 297 mm) at the logical score width */
+export const PAGE_HEIGHT = Math.round(SCORE_WIDTH * 297 / 210);
+const PAGE_BOTTOM = 60;
 const MARGIN = 36;
 const INK = '#1b1712';
 
-export interface BarGeom { bar: number; x: number; y: number; w: number; h: number }
-export interface ScoreGeom { width: number; height: number; bars: BarGeom[] }
+export interface BarGeom { bar: number; page: number; x: number; y: number; w: number; h: number }
+export interface ScoreGeom { width: number; height: number; pages: number; bars: BarGeom[] }
 
 export interface ScoreOpts {
   key: KeyName;
@@ -206,14 +209,27 @@ function makeVoice(notes: StaveNote[]): Voice {
   return v;
 }
 
-function setupRenderer(el: HTMLDivElement, width: number, height: number) {
-  el.innerHTML = '';
-  const renderer = new Renderer(el, Renderer.Backends.SVG);
-  renderer.resize(width, height);
+/** One SVG per A4 page, each in its own .score-page div. */
+function newPage(el: HTMLDivElement): ReturnType<Renderer['getContext']> {
+  const div = document.createElement('div');
+  div.className = 'score-page';
+  el.appendChild(div);
+  const renderer = new Renderer(div, Renderer.Backends.SVG);
+  renderer.resize(SCORE_WIDTH, PAGE_HEIGHT);
   const ctx = renderer.getContext();
   ctx.setFillStyle(INK);
   ctx.setStrokeStyle(INK);
-  return { renderer, ctx };
+  return ctx;
+}
+
+function drawPageHeader(ctx: ReturnType<Renderer['getContext']>, opts: ScoreOpts, page: number, family: string) {
+  ctx.save();
+  ctx.setFont(family, 12, '500');
+  ctx.fillText(opts.title, MARGIN, 42);
+  const pn = String(page);
+  const w = ctx.measureText(pn).width;
+  ctx.fillText(pn, SCORE_WIDTH - MARGIN - w, 42);
+  ctx.restore();
 }
 
 interface HeaderFonts { title: string; sub: string; titleSize: number; subSize: number }
@@ -241,7 +257,8 @@ function drawHeader(
   const tw = ctx.measureText(opts.title).width;
   ctx.fillText(opts.title, (width - tw) / 2, 48);
   ctx.setFont(fonts.sub, fonts.subSize, '500');
-  const st = `${opts.styleName} · ${opts.feelName} · ♩= ${opts.tempo} · ${subtitle}`;
+  void subtitle;
+  const st = `${opts.feelName} · ♩= ${opts.tempo}`;
   ctx.fillText(st, MARGIN, 78);
   ctx.restore();
 }
@@ -283,13 +300,14 @@ export function renderLeadSheet(el: HTMLDivElement, bars: BarSpec[], opts: Score
     if (cur.length > 0) lineBars.push(cur);
   }
   const lines = Math.max(1, lineBars.length);
-  const topY = 124;
   const lineH = 132;
-  const height = topY + lines * lineH + 20;
-  const { ctx } = setupRenderer(el, SCORE_WIDTH, height);
+  el.innerHTML = '';
+  let page = 0;
+  let ctx = newPage(el);
   drawHeader(ctx, opts, SCORE_WIDTH, 'Lead Sheet', {
     title: JAZZ_TEXT, sub: JAZZ_TEXT, titleSize: 26, subSize: 14,
   });
+  let yCursor = 124;
 
   const geoms: BarGeom[] = [];
   const usable = SCORE_WIDTH - MARGIN * 2;
@@ -366,7 +384,14 @@ export function renderLeadSheet(el: HTMLDivElement, bars: BarSpec[], opts: Score
   for (let line = 0; line < lines; line++) {
     const idxs = lineBars[line] ?? [];
     const inLine = idxs.length;
-    const y = topY + line * lineH;
+    if (yCursor + lineH > PAGE_HEIGHT - PAGE_BOTTOM) {
+      page++;
+      ctx = newPage(el);
+      drawPageHeader(ctx, opts, page + 1, JAZZ_TEXT);
+      yCursor = 88;
+    }
+    const y = yCursor;
+    yCursor += lineH;
     let prevOut: { note: StaveNote } | null = null;
 
     for (let col = 0; col < inLine; col++) {
@@ -449,11 +474,11 @@ export function renderLeadSheet(el: HTMLDivElement, bars: BarSpec[], opts: Score
       }
       prevOut = tieOutNote ? { note: tieOutNote } : null;
 
-      geoms.push({ bar: i, x, y: y - 14, w, h: 96 });
+      geoms.push({ bar: i, page, x, y: y - 14, w, h: 96 });
     }
   }
 
-  return { width: SCORE_WIDTH, height, bars: geoms };
+  return { width: SCORE_WIDTH, height: PAGE_HEIGHT, pages: page + 1, bars: geoms };
 }
 
 // ---------- piano score ----------
@@ -514,17 +539,26 @@ export function renderPianoScore(el: HTMLDivElement, song: Song, opts: ScoreOpts
   }
 
   const lines = lineBars.length;
-  const height = topY + lines * systemH + 20;
-  const { ctx } = setupRenderer(el, SCORE_WIDTH, height);
+  el.innerHTML = '';
+  let page = 0;
+  let ctx = newPage(el);
   drawHeader(ctx, opts, SCORE_WIDTH, 'Piano', {
     title: 'Archivo, sans-serif', sub: 'Archivo, sans-serif', titleSize: 22, subSize: 11,
   });
+  let yCursor = topY;
 
   const geoms: BarGeom[] = [];
 
   for (let line = 0; line < lines; line++) {
     const idxs = lineBars[line];
-    const y = topY + line * systemH;
+    if (yCursor + systemH > PAGE_HEIGHT - PAGE_BOTTOM) {
+      page++;
+      ctx = newPage(el);
+      drawPageHeader(ctx, opts, page + 1, 'Archivo, sans-serif');
+      yCursor = 88;
+    }
+    const y = yCursor;
+    yCursor += systemH;
     const overhead = lineOverhead(opts.key, line === 0) + 8;
     const sumMin = idxs.reduce((a, i) => a + minWidths[i], 0);
     const noteSpace = usable - overhead;
@@ -609,11 +643,11 @@ export function renderPianoScore(el: HTMLDivElement, song: Song, opts: ScoreOpts
         }
       }
 
-      geoms.push({ bar: i, x, y: y - 16, w, h: staffGap + 96 });
+      geoms.push({ bar: i, page, x, y: y - 16, w, h: staffGap + 96 });
       prevBuilt = { rh: rhBuilt, lh: lhBuilt };
       x += w;
     }
   }
 
-  return { width: SCORE_WIDTH, height, bars: geoms };
+  return { width: SCORE_WIDTH, height: PAGE_HEIGHT, pages: page + 1, bars: geoms };
 }

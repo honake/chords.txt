@@ -109,7 +109,7 @@ input.song-title:focus { border-bottom-color: var(--line-strong); }
 
 .body {
   display: grid;
-  grid-template-columns: 420px 1fr;
+  grid-template-columns: 540px 1fr;
   min-height: 0;
 }
 
@@ -589,17 +589,27 @@ input.tempo-input::-webkit-inner-spin-button { -webkit-appearance: none; }
 }
 
 .score-paper {
+  max-width: 1000px;
+  margin: 0 auto;
+}
+
+.score-page {
   position: relative;
   background: var(--paper);
   border: 1px solid var(--line);
   border-radius: 2px;
   box-shadow: 0 16px 44px rgba(35, 48, 44, 0.14), 0 2px 8px rgba(35, 48, 44, 0.08);
-  max-width: 1000px;
-  margin: 0 auto;
-  padding: 16px 8px;
 }
 
-.score-paper svg { display: block; width: 100%; height: auto; }
+.score-page + .score-page { margin-top: 28px; }
+
+.score-paper .empty-note {
+  background: var(--paper);
+  border: 1px solid var(--line);
+  border-radius: 2px;
+}
+
+.score-page svg, .score-paper svg { display: block; width: 100%; height: auto; }
 
 .bar-highlight {
   position: absolute;
@@ -747,12 +757,16 @@ input.tempo-input::-webkit-inner-spin-button { -webkit-appearance: none; }
   .topbar, .controls, .transport { display: none !important; }
   .body { display: block; }
   .score-scroll { overflow: visible; padding: 0; }
-  .score-paper {
+  .score-paper { max-width: none; }
+  .score-page {
     box-shadow: none;
+    border: none;
     border-radius: 0;
-    max-width: none;
-    padding: 0;
     background: #fff;
+    margin: 0 !important;
+    break-after: page;
+    page-break-after: always;
   }
+  .score-page:last-child { break-after: auto; page-break-after: auto; }
   .bar-highlight { display: none; }
 }
