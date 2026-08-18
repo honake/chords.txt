@@ -359,8 +359,8 @@ export function generateSong(bars: BarSpec[], styleId: StyleId, seed: number, se
       // --- stab (キメ): one short accented hit, then silence ---
       if (seg.stab) {
         const t = pushed ? segAbs - pushAmt : segAbs;
-        for (const midi of rh) events.push({ start: t, d: 2, midi, vel: humanVel(96), hand: 'rh' });
-        for (const midi of lh) events.push({ start: t, d: 2, midi, vel: humanVel(100), hand: 'lh' });
+        for (const midi of rh) events.push({ start: t, d: 2, midi, vel: humanVel(90), hand: 'rh' });
+        for (const midi of lh) events.push({ start: t, d: 2, midi, vel: humanVel(94), hand: 'lh' });
         return;
       }
 

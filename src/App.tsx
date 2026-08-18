@@ -97,7 +97,7 @@ const PRESETS: Preset[] = [
   },
   {
     name: 'Gospel Turnaround (C)', group: 'SOUL', key: 'C', style: 'neosoul', tempo: 100,
-    settings: { feel: 'shuffle16', swing: 0.6, fillStyle: 'gospel', fills: 0.6, embellish: 0.6 },
+    settings: { feel: 'shuffle16', swing: 0.6, fillStyle: 'gospel', fills: 0.75, embellish: 0.6, register: -5 },
     text: `| C E7 | Am7 C7 | F F#dim7 | C/G A7 |
 | Dm7 G7 | C E7 | Am7 D7 | >C G7! |`,
   },
@@ -114,6 +114,9 @@ const PRESETS: Preset[] = [
 | [3-3-10] Amaj9 | F#m11 | [3-3-2-3-3-2] Dmaj9 Dmaj9 Dmaj9 E7sus4 | A6/9 |`,
   },
 ];
+
+// what a first-time visitor hears
+const DEFAULT_PRESET = PRESETS.find(p => p.name.startsWith('Gospel Turnaround'))!;
 
 const STYLE_TEMPOS: Record<StyleId, number> = { jazz: 132, neosoul: 74, pop: 96, ballad: 68 };
 const TENSION_LABELS = ['Basic', '+9th', 'Rich'];
@@ -293,18 +296,20 @@ function loadInitial(): SavedState | null {
 const initial = loadInitial();
 
 export default function App() {
-  const [title, setTitle] = useState(initial?.t ?? 'Untitled Session');
-  const [chordText, setChordText] = useState(initial?.c ?? DEFAULT_PROGRESSION);
-  const [keyName, setKeyName] = useState<KeyName>(initial?.k ?? 'F');
-  const [styleId, setStyleId] = useState<StyleId>(initial?.s ?? 'neosoul');
+  const [title, setTitle] = useState(initial?.t ?? DEFAULT_PRESET.name);
+  const [chordText, setChordText] = useState(initial?.c ?? DEFAULT_PRESET.text);
+  const [keyName, setKeyName] = useState<KeyName>(initial?.k ?? DEFAULT_PRESET.key);
+  const [styleId, setStyleId] = useState<StyleId>(initial?.s ?? DEFAULT_PRESET.style);
   const [settingsRaw, setSettings] = useState<GrooveSettings>(
-    { ...getStyle(initial?.s ?? 'neosoul').defaults, feel: 'sixteenth', fillStyle: 'contemporary', ...(initial?.g ?? {}) });
+    { ...getStyle(initial?.s ?? DEFAULT_PRESET.style).defaults,
+      ...(initial ? {} : DEFAULT_PRESET.settings),
+      ...(initial?.g ?? {}) });
   // merge over style defaults so newly added fields always have a value
   const settings = useMemo<GrooveSettings>(
     () => ({ ...getStyle(styleId).defaults, ...settingsRaw }),
     [styleId, settingsRaw],
   );
-  const [tempo, setTempo] = useState(initial?.b ?? 94);
+  const [tempo, setTempo] = useState(initial?.b ?? DEFAULT_PRESET.tempo);
   const [seed, setSeed] = useState(initial?.d ?? 1);
   const [tab, setTab] = useState<'lead' | 'piano'>('piano');
   const [playing, setPlaying] = useState(false);
