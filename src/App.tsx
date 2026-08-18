@@ -126,37 +126,38 @@ const FILL_STYLES: { id: GrooveSettings['fillStyle']; name: string }[] = [
   { id: 'mix', name: 'Mix' },
 ];
 
-// ---- the honake pixel slime (same sprite as honake.github.io) ----
-const SLIME_BASE = [
-  '....DDDD....',
-  '..DDWWWWDD..',
-  '.DWWWWWWWWD.',
-  '.DWWWWWWWWD.',
-  'DWWBWWWWBWWD',
-  'DWWWWWWWWWWD',
-  'DWWWWDDWWWWD',
-  'DWWWWWWWWWWD',
-  '.DWWWWWWWWD.',
-  '..DDDDDDDD..',
+// ---- the chords.txt page sprite: a little text file that sings along ----
+// D = ink (--text) · W = paper · T = the dog-eared corner & headphones (--accent)
+const PAGE_BASE = [
+  '..DDDDDD....',
+  '..DWWWWDD...',
+  '..DWWWWTDD..',
+  '..DWWWWTTTD.',
+  '..DWWWWWWWD.',
+  '..DWDWWWDWD.',
+  '..DWWWWWWWD.',
+  '..DWWDDWWWD.',
+  '..DWWWWWWWD.',
+  '..DDDDDDDDD.',
 ];
-const SLIME_HAPPY = SLIME_BASE.map((r, i) => (i === 6 ? 'DWWWDDDDWWWD' : r));
-// headphones on (H pixels) — worn while the band is playing
-const SLIME_PHONES = [
-  '..HHHHHHHH..',
-  '.HDDWWWWDDH.',
-  'HHDWWWWWWDHH',
-  'HHWWWWWWWWHH',
-  'HHWBWWWWBWHH',
-  'DWWWWWWWWWWD',
-  'DWWWWDDWWWWD',
-  'DWWWWWWWWWWD',
-  '.DWWWWWWWWD.',
-  '..DDDDDDDD..',
+const PAGE_HAPPY = PAGE_BASE.map((r, i) => (i === 7 ? '..DWWDDDWWD.' : r));
+// headphones on (T pixels) — worn while the band is playing
+const PAGE_PHONES = [
+  '.TTTTTTTTTTT',
+  '.TDWWWWDD..T',
+  '.TDWWWWTDD.T',
+  '.TDWWWWTTTDT',
+  'TTDWWWWWWWTT',
+  'TTDWDWWWDWTT',
+  'TTDWWWWWWWTT',
+  '..DWWDDWWWD.',
+  '..DWWWWWWWD.',
+  '..DDDDDDDDD.',
 ];
-const SLIME_PHONES_HAPPY = SLIME_PHONES.map((r, i) => (i === 6 ? 'DWWWDDDDWWWD' : r));
+const PAGE_PHONES_HAPPY = PAGE_PHONES.map((r, i) => (i === 7 ? '..DWWDDDWWD.' : r));
 
-function SlimeSprite({ rows }: { rows: string[] }) {
-  const fill: Record<string, string> = { D: '#2b302e', W: '#ffffff', B: '#2c4bff', H: '#2f7d6e' };
+function PageSprite({ rows }: { rows: string[] }) {
+  const fill: Record<string, string> = { D: 'var(--text)', W: '#ffffff', T: 'var(--accent)' };
   const px: React.ReactNode[] = [];
   rows.forEach((row, y) => {
     [...row].forEach((ch, x) => {
@@ -173,8 +174,8 @@ function Mascot({ playing, bpm }: { playing: boolean; bpm: number }) {
       style={playing ? { animationDuration: `${60 / Math.max(40, bpm)}s` } : undefined}
       title="hi!"
     >
-      <span className="mascot-base"><SlimeSprite rows={playing ? SLIME_PHONES : SLIME_BASE} /></span>
-      <span className="mascot-happy"><SlimeSprite rows={playing ? SLIME_PHONES_HAPPY : SLIME_HAPPY} /></span>
+      <span className="mascot-base"><PageSprite rows={playing ? PAGE_PHONES : PAGE_BASE} /></span>
+      <span className="mascot-happy"><PageSprite rows={playing ? PAGE_PHONES_HAPPY : PAGE_HAPPY} /></span>
     </span>
   );
 }
@@ -551,7 +552,7 @@ export default function App() {
   return (
     <div className="app">
       <header className="topbar">
-        <div className="wordmark"><Mascot playing={playing} bpm={tempo} /> chords<span className="ext">.txt</span></div>
+        <div className="wordmark"><Mascot playing={playing} bpm={tempo} /><span className="wm-text">chords<span className="ext">.txt</span></span></div>
         <div className="title-wrap">
           <input
             className="song-title"
