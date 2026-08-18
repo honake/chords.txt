@@ -107,6 +107,8 @@ input.song-title:focus { border-bottom-color: var(--line-strong); }
   color: var(--text-faint);
 }
 
+.body > * { min-height: 0; }
+
 .body {
   display: grid;
   grid-template-columns: 540px 1fr;
