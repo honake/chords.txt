@@ -512,6 +512,7 @@ export default function App() {
   };
 
   const applyPreset = (p: Preset) => {
+    setTitle(p.name);
     setChordText(p.text);
     setKeyName(p.key);
     setStyleId(p.style);
