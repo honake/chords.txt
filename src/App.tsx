@@ -7,54 +7,90 @@ import { songToMidi, downloadBlob } from './lib/midi';
 import { ScoreView } from './components/ScoreView';
 import petalumaUrl from './assets/fonts/PetalumaScript.otf';
 
-const DEFAULT_PROGRESSION = `| Cmaj7 A7 | Dm7 G7 | Em7 A7 | Dm7 G7 |
-| Cmaj7 C7 | Fmaj7 Fm6 | Em7 A7 | >Dm7 G7! |`;
+const DEFAULT_PROGRESSION = `| Gm9 Am7 | Bbmaj9 Am7 | Gm9 Am7 | >Bbmaj9 |
+| Gm9 Am7 | Bbmaj9 Am7 | [3-3-2-3-3-2] Gm9 Gm9 Gm9 C13 | >Fmaj9 |`;
 
-const PRESETS: { name: string; text: string; key: KeyName; style: StyleId; tempo: number }[] = [
+interface Preset {
+  name: string;
+  group: 'POP' | 'JAZZ' | 'SOUL' | 'NEO SOUL';
+  text: string;
+  key: KeyName;
+  style: StyleId;
+  tempo: number;
+  /** groove overrides on top of the style defaults (feel / fill style coverage) */
+  settings?: Partial<GrooveSettings>;
+}
+
+const PRESETS: Preset[] = [
+  // ---- POP: straight 8ths / 16 beat / ballad ----
   {
-    name: 'Junkan · I-VI-II-V (C)', key: 'C', style: 'jazz', tempo: 132,
-    text: DEFAULT_PROGRESSION,
-  },
-  {
-    name: 'Gyaku-Junkan (C)', key: 'C', style: 'jazz', tempo: 126,
-    text: `| Em7 A7 | Dm7 G7 | Em7 A7 | Dm7 G7 |
-| [charleston] Em7 A7 | Dm7 G7 | [3-3-10] Cmaj7 | Dm7 >G7! |`,
-  },
-  {
-    name: 'Rhythm Changes A (Bb)', key: 'Bb', style: 'jazz', tempo: 152,
-    text: `| Bbmaj7 G7 | Cm7 F7 | Dm7 G7 | Cm7 F7 |
-| Fm7 Bb7 | Ebmaj7 Ab7 | Dm7 G7 | >Cm7 F7! |`,
-  },
-  {
-    name: 'Jazz Blues (F)', key: 'F', style: 'jazz', tempo: 144,
-    text: `| F7 | Bb7 | F7 | Cm7 F7 |
-| Bb7 | Bdim7 | F7 | Am7b5 D7 |
-| Gm7 | C7 | [3-3-10] F7 F7 D7 | Gm7 >C7 |`,
-  },
-  {
-    name: 'St. Denis Vamp (F)', key: 'F', style: 'neosoul', tempo: 94,
-    text: `| Gm9 Am7 | Bbmaj9 Am7 | Gm9 Am7 | >Bbmaj9 |
-| Gm9 Am7 | Bbmaj9 Am7 | [3-3-2-3-3-2] Gm9 Gm9 Gm9 C13 | >Fmaj9 |`,
-  },
-  {
-    name: 'Lovely Shuffle (E)', key: 'E', style: 'neosoul', tempo: 116,
-    text: `| C#m9 | F#13 | B7sus4 B13 | Emaj9 |
-| C#m9 | F#13 | [6-6-4] B7sus4 B7sus4 B13 | >Emaj9 |`,
-  },
-  {
-    name: '16-Beat Hits (A)', key: 'A', style: 'neosoul', tempo: 92,
-    text: `| [3-3-10] Amaj9 | F#m11 | [3-3-10] Dmaj9 Dmaj9 C#m7 | >E7sus4 E7! |
-| [3-3-10] Amaj9 | F#m11 | [3-3-2-3-3-2] Dmaj9 Dmaj9 Dmaj9 E7sus4 | A6/9 |`,
-  },
-  {
-    name: 'Pop (C)', key: 'C', style: 'pop', tempo: 96,
+    name: 'Axis Pop (C)', group: 'POP', key: 'C', style: 'pop', tempo: 96,
+    settings: { feel: 'straight8', fillStyle: 'basic' },
     text: `| C G/B | Am7 F | C G | F Gsus4 |
 | C G/B | Am7 F | Dm7 >G | [6-6-4] C |`,
   },
   {
-    name: 'Ballad (G)', key: 'G', style: 'ballad', tempo: 68,
+    name: '16-Beat Pop (C)', group: 'POP', key: 'C', style: 'pop', tempo: 104,
+    settings: { feel: 'sixteenth', fillStyle: 'mix', density: 0.7 },
+    text: `| Fmaj7 G/F | Em7 Am7 | Fmaj7 G | >Cmaj7 |
+| Fmaj7 G/F | Em7 Am7 | [3-3-10] Dm7 Dm7 G7 | Cmaj7 |`,
+  },
+  {
+    name: 'Pop Ballad (G)', group: 'POP', key: 'G', style: 'ballad', tempo: 68,
+    settings: { feel: 'straight8', fillStyle: 'basic' },
     text: `| G D/F# | Em7 D | Cmaj7 G/B | Am7 D7 |
 | G D/F# | Em7 G7 | Cmaj7 Cm6 | G |`,
+  },
+  // ---- JAZZ: swing 8ths, jazz & blues fills ----
+  {
+    name: 'I-VI-II-V (C)', group: 'JAZZ', key: 'C', style: 'jazz', tempo: 132,
+    settings: { feel: 'swing8', fillStyle: 'jazz' },
+    text: `| Cmaj7 A7 | Dm7 G7 | Em7 A7 | Dm7 G7 |
+| Cmaj7 C7 | Fmaj7 Fm6 | Em7 A7 | >Dm7 G7! |`,
+  },
+  {
+    name: 'III-VI-II-V (C)', group: 'JAZZ', key: 'C', style: 'jazz', tempo: 126,
+    settings: { feel: 'swing8', fillStyle: 'jazz' },
+    text: `| Em7 A7 | Dm7 G7 | Em7 A7 | Dm7 G7 |
+| [charleston] Em7 A7 | Dm7 G7 | [3-3-10] Cmaj7 | Dm7 >G7! |`,
+  },
+  {
+    name: 'Rhythm Changes A (Bb)', group: 'JAZZ', key: 'Bb', style: 'jazz', tempo: 152,
+    settings: { feel: 'swing8', fillStyle: 'jazz' },
+    text: `| Bbmaj7 G7 | Cm7 F7 | Dm7 G7 | Cm7 F7 |
+| Fm7 Bb7 | Ebmaj7 Ab7 | Dm7 G7 | >Cm7 F7! |`,
+  },
+  {
+    name: 'Jazz Blues (F)', group: 'JAZZ', key: 'F', style: 'jazz', tempo: 144,
+    settings: { feel: 'swing8', fillStyle: 'blues', fills: 0.5 },
+    text: `| F7 | Bb7 | F7 | Cm7 F7 |
+| Bb7 | Bdim7 | F7 | Am7b5 D7 |
+| Gm7 | C7 | [3-3-10] F7 F7 D7 | Gm7 >C7 |`,
+  },
+  // ---- SOUL: shuffle 16ths, gospel fills ----
+  {
+    name: 'Lovely Shuffle (E)', group: 'SOUL', key: 'E', style: 'neosoul', tempo: 116,
+    settings: { feel: 'shuffle16', swing: 0.62, fillStyle: 'gospel' },
+    text: `| C#m9 | F#13 | B7sus4 B13 | Emaj9 |
+| C#m9 | F#13 | [6-6-4] B7sus4 B7sus4 B13 | >Emaj9 |`,
+  },
+  {
+    name: 'Gospel Turnaround (C)', group: 'SOUL', key: 'C', style: 'neosoul', tempo: 100,
+    settings: { feel: 'shuffle16', swing: 0.6, fillStyle: 'gospel', fills: 0.6, embellish: 0.6 },
+    text: `| C E7 | Am7 C7 | F F#dim7 | C/G A7 |
+| Dm7 G7 | C E7 | Am7 D7 | >C G7! |`,
+  },
+  // ---- NEO SOUL: 16 beat, contemporary fills ----
+  {
+    name: 'St. Denis Vamp (F)', group: 'NEO SOUL', key: 'F', style: 'neosoul', tempo: 94,
+    settings: { feel: 'sixteenth', fillStyle: 'contemporary' },
+    text: DEFAULT_PROGRESSION,
+  },
+  {
+    name: '16-Beat Hits (A)', group: 'NEO SOUL', key: 'A', style: 'neosoul', tempo: 92,
+    settings: { feel: 'sixteenth', fillStyle: 'contemporary' },
+    text: `| [3-3-10] Amaj9 | F#m11 | [3-3-10] Dmaj9 Dmaj9 C#m7 | >E7sus4 E7! |
+| [3-3-10] Amaj9 | F#m11 | [3-3-2-3-3-2] Dmaj9 Dmaj9 Dmaj9 E7sus4 | A6/9 |`,
   },
 ];
 
@@ -69,7 +105,7 @@ const FILL_STYLES: { id: GrooveSettings['fillStyle']; name: string }[] = [
   { id: 'mix', name: 'Mix' },
 ];
 
-interface DdOption { value: string; label: string }
+interface DdOption { value: string; label: string; group?: string }
 
 /** Styled dropdown (native selects can't be themed). */
 function Dropdown({ value, options, onChange, placeholder, menuAlign = 'right' }: {
@@ -98,13 +134,17 @@ function Dropdown({ value, options, onChange, placeholder, menuAlign = 'right' }
       </button>
       {open && (
         <div className={`dd-menu ${menuAlign}`}>
-          {options.map(o => (
-            <button
-              type="button"
-              key={o.value}
-              className={`dd-item${o.value === value ? ' active' : ''}`}
-              onClick={() => { onChange(o.value); setOpen(false); }}
-            >{o.label}</button>
+          {options.map((o, i) => (
+            <span key={o.value}>
+              {o.group != null && (i === 0 || options[i - 1].group !== o.group) && (
+                <div className="dd-group">{o.group}</div>
+              )}
+              <button
+                type="button"
+                className={`dd-item${o.value === value ? ' active' : ''}`}
+                onClick={() => { onChange(o.value); setOpen(false); }}
+              >{o.label}</button>
+            </span>
           ))}
         </div>
       )}
@@ -165,16 +205,16 @@ const initial = loadInitial();
 export default function App() {
   const [title, setTitle] = useState(initial?.t ?? 'Untitled Session');
   const [chordText, setChordText] = useState(initial?.c ?? DEFAULT_PROGRESSION);
-  const [keyName, setKeyName] = useState<KeyName>(initial?.k ?? 'C');
-  const [styleId, setStyleId] = useState<StyleId>(initial?.s ?? 'jazz');
+  const [keyName, setKeyName] = useState<KeyName>(initial?.k ?? 'F');
+  const [styleId, setStyleId] = useState<StyleId>(initial?.s ?? 'neosoul');
   const [settingsRaw, setSettings] = useState<GrooveSettings>(
-    { ...getStyle(initial?.s ?? 'jazz').defaults, ...(initial?.g ?? {}) });
+    { ...getStyle(initial?.s ?? 'neosoul').defaults, feel: 'sixteenth', fillStyle: 'contemporary', ...(initial?.g ?? {}) });
   // merge over style defaults so newly added fields always have a value
   const settings = useMemo<GrooveSettings>(
     () => ({ ...getStyle(styleId).defaults, ...settingsRaw }),
     [styleId, settingsRaw],
   );
-  const [tempo, setTempo] = useState(initial?.b ?? 132);
+  const [tempo, setTempo] = useState(initial?.b ?? 94);
   const [seed, setSeed] = useState(initial?.d ?? 1);
   const [tab, setTab] = useState<'lead' | 'piano'>('piano');
   const [playing, setPlaying] = useState(false);
@@ -332,10 +372,11 @@ export default function App() {
     img.src = `data:image/svg+xml;charset=utf-8,${encodeURIComponent(data)}`;
   };
 
-  const applyPreset = (p: typeof PRESETS[number]) => {
+  const applyPreset = (p: Preset) => {
     setChordText(p.text);
     setKeyName(p.key);
-    selectStyle(p.style);
+    setStyleId(p.style);
+    setSettings({ ...getStyle(p.style).defaults, ...(p.settings ?? {}) });
     setTempo(p.tempo);
     setSeed(s => s + 1);
   };
@@ -390,7 +431,7 @@ export default function App() {
               <Dropdown
                 value={null}
                 placeholder="Load…"
-                options={PRESETS.map(p => ({ value: p.name, label: p.name }))}
+                options={PRESETS.map(p => ({ value: p.name, label: p.name, group: p.group }))}
                 onChange={name => {
                   const p = PRESETS.find(x => x.name === name);
                   if (p) applyPreset(p);

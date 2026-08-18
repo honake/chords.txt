@@ -7,16 +7,16 @@
 }
 
 :root {
-  --text: #e6eae7;
-  --text-dim: #939d9c;
-  --text-faint: #5d6a6a;
-  --accent: #a9d7cd;
-  --accent-dim: rgba(169, 215, 205, 0.4);
-  --line: rgba(230, 234, 231, 0.1);
-  --line-strong: rgba(230, 234, 231, 0.22);
-  --well: rgba(8, 12, 14, 0.28);
-  --paper: #f1eee6;
-  --danger: #e0876b;
+  --text: #2b302e;
+  --text-dim: #6e7674;
+  --text-faint: #9ba19e;
+  --accent: #2f7d6e;
+  --accent-dim: rgba(47, 125, 110, 0.45);
+  --line: rgba(30, 42, 38, 0.12);
+  --line-strong: rgba(30, 42, 38, 0.24);
+  --well: rgba(30, 42, 38, 0.05);
+  --paper: #fffdf7;
+  --danger: #c2543a;
   --font: 'Archivo', 'Hiragino Sans', 'Yu Gothic UI', sans-serif;
   --mono: 'IBM Plex Mono', monospace;
 }
@@ -32,10 +32,9 @@ body {
   -webkit-font-smoothing: antialiased;
   overflow: hidden;
   background:
-    radial-gradient(1000px 700px at 72% 12%, rgba(146, 188, 180, 0.2), transparent 62%),
-    radial-gradient(1300px 900px at 22% 85%, rgba(58, 92, 112, 0.28), transparent 65%),
-    radial-gradient(800px 500px at 50% 45%, rgba(120, 150, 150, 0.1), transparent 70%),
-    linear-gradient(163deg, #2b3c3e 0%, #202d34 42%, #131a1f 100%);
+    radial-gradient(1000px 700px at 72% 12%, rgba(126, 178, 166, 0.14), transparent 62%),
+    radial-gradient(1300px 900px at 22% 85%, rgba(120, 150, 170, 0.1), transparent 65%),
+    linear-gradient(163deg, #f7f6f2 0%, #f0efe9 45%, #e7e5dd 100%);
   background-attachment: fixed;
 }
 
@@ -46,12 +45,12 @@ body::after {
   inset: 0;
   z-index: 999;
   pointer-events: none;
-  opacity: 0.5;
-  mix-blend-mode: overlay;
+  opacity: 0.3;
+  mix-blend-mode: multiply;
   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3CfeComponentTransfer%3E%3CfeFuncA type='linear' slope='0.14'/%3E%3C/feComponentTransfer%3E%3C/filter%3E%3Crect width='160' height='160' filter='url(%23n)'/%3E%3C/svg%3E");
 }
 
-::selection { background: rgba(169, 215, 205, 0.25); }
+::selection { background: rgba(47, 125, 110, 0.25); }
 
 /* ---------- shell ---------- */
 
@@ -207,6 +206,14 @@ input.song-title:focus { border-bottom-color: var(--line-strong); }
 
 .dd-trigger.open .dd-chev { transform: rotate(-135deg) translate(-2px, -2px); }
 
+.dd-group {
+  font-size: 8.5px;
+  font-weight: 700;
+  letter-spacing: 0.2em;
+  color: var(--text-faint);
+  padding: 8px 10px 3px;
+}
+
 .dd-menu {
   position: absolute;
   top: calc(100% + 6px);
@@ -215,10 +222,10 @@ input.song-title:focus { border-bottom-color: var(--line-strong); }
   min-width: 150px;
   max-height: 280px;
   overflow-y: auto;
-  background: #1b2528;
+  background: #ffffff;
   border: 1px solid var(--line-strong);
   border-radius: 3px;
-  box-shadow: 0 14px 44px rgba(0, 0, 0, 0.55);
+  box-shadow: 0 14px 44px rgba(35, 48, 44, 0.22);
   padding: 4px;
 }
 
@@ -244,7 +251,7 @@ input.song-title:focus { border-bottom-color: var(--line-strong); }
   white-space: nowrap;
 }
 
-.dd-item:hover { background: rgba(169, 215, 205, 0.08); color: var(--text); }
+.dd-item:hover { background: rgba(47, 125, 110, 0.08); color: var(--text); }
 
 .dd-item.active { color: var(--accent); }
 
@@ -401,17 +408,18 @@ textarea.chords:focus {
   white-space: nowrap;
 }
 
-.btn:hover { border-color: var(--accent-dim); box-shadow: 0 0 12px rgba(169, 215, 205, 0.1); }
+.btn:hover { border-color: var(--accent-dim); box-shadow: 0 0 12px rgba(47, 125, 110, 0.1); }
 
 .btn:disabled { opacity: 0.35; cursor: default; box-shadow: none; }
 
 .btn.primary {
   border-color: var(--accent-dim);
   color: var(--accent);
+  font-weight: 700;
 }
 
 .btn.primary:hover {
-  background: rgba(169, 215, 205, 0.08);
+  background: rgba(47, 125, 110, 0.08);
 }
 
 .btn.block { width: 100%; }
@@ -460,14 +468,14 @@ textarea.chords:focus {
 .play-btn:hover {
   border-color: var(--accent);
   color: var(--accent);
-  box-shadow: 0 0 16px rgba(169, 215, 205, 0.18);
+  box-shadow: 0 0 16px rgba(47, 125, 110, 0.18);
 }
 
 .play-btn.playing {
   background: var(--accent);
   border-color: var(--accent);
-  color: #14211f;
-  box-shadow: 0 0 20px rgba(169, 215, 205, 0.35);
+  color: #ffffff;
+  box-shadow: 0 0 20px rgba(47, 125, 110, 0.35);
 }
 
 .play-btn:disabled { opacity: 0.3; cursor: default; box-shadow: none; }
@@ -583,8 +591,9 @@ input.tempo-input::-webkit-inner-spin-button { -webkit-appearance: none; }
 .score-paper {
   position: relative;
   background: var(--paper);
+  border: 1px solid var(--line);
   border-radius: 2px;
-  box-shadow: 0 20px 60px rgba(4, 8, 10, 0.5), 0 2px 8px rgba(4, 8, 10, 0.3);
+  box-shadow: 0 16px 44px rgba(35, 48, 44, 0.14), 0 2px 8px rgba(35, 48, 44, 0.08);
   max-width: 1000px;
   margin: 0 auto;
   padding: 16px 8px;
@@ -594,7 +603,7 @@ input.tempo-input::-webkit-inner-spin-button { -webkit-appearance: none; }
 
 .bar-highlight {
   position: absolute;
-  background: rgba(94, 158, 146, 0.16);
+  background: rgba(47, 125, 110, 0.14);
   border-radius: 2px;
   pointer-events: none;
   transition: left 0.08s linear, top 0.08s linear;
@@ -614,12 +623,12 @@ input.tempo-input::-webkit-inner-spin-button { -webkit-appearance: none; }
 ::-webkit-scrollbar { width: 10px; height: 10px; }
 ::-webkit-scrollbar-track { background: transparent; }
 ::-webkit-scrollbar-thumb {
-  background: rgba(230, 234, 231, 0.12);
+  background: rgba(30, 42, 38, 0.18);
   border-radius: 5px;
   border: 3px solid transparent;
   background-clip: content-box;
 }
-::-webkit-scrollbar-thumb:hover { background: rgba(230, 234, 231, 0.22); background-clip: content-box; }
+::-webkit-scrollbar-thumb:hover { background: rgba(30, 42, 38, 0.3); background-clip: content-box; }
 
 /* ---------- modal ---------- */
 
@@ -627,7 +636,7 @@ input.tempo-input::-webkit-inner-spin-button { -webkit-appearance: none; }
   position: fixed;
   inset: 0;
   z-index: 100;
-  background: rgba(8, 12, 14, 0.55);
+  background: rgba(40, 52, 48, 0.3);
   backdrop-filter: blur(5px);
   display: flex;
   align-items: center;
@@ -636,10 +645,10 @@ input.tempo-input::-webkit-inner-spin-button { -webkit-appearance: none; }
 }
 
 .modal {
-  background: #1b2528;
+  background: #ffffff;
   border: 1px solid var(--line-strong);
   border-radius: 4px;
-  box-shadow: 0 24px 80px rgba(0, 0, 0, 0.55);
+  box-shadow: 0 24px 80px rgba(35, 48, 44, 0.25);
   width: min(600px, 92vw);
   max-height: 84vh;
   display: flex;
