@@ -119,9 +119,23 @@ const SLIME_BASE = [
   '..DDDDDDDD..',
 ];
 const SLIME_HAPPY = SLIME_BASE.map((r, i) => (i === 6 ? 'DWWWDDDDWWWD' : r));
+// headphones on (H pixels) — worn while the band is playing
+const SLIME_PHONES = [
+  '..HHHHHHHH..',
+  '.HDDWWWWDDH.',
+  'HHDWWWWWWDHH',
+  'HHWWWWWWWWHH',
+  'HHWBWWWWBWHH',
+  'DWWWWWWWWWWD',
+  'DWWWWDDWWWWD',
+  'DWWWWWWWWWWD',
+  '.DWWWWWWWWD.',
+  '..DDDDDDDD..',
+];
+const SLIME_PHONES_HAPPY = SLIME_PHONES.map((r, i) => (i === 6 ? 'DWWWDDDDWWWD' : r));
 
 function SlimeSprite({ rows }: { rows: string[] }) {
-  const fill: Record<string, string> = { D: '#2b302e', W: '#ffffff', B: '#2c4bff' };
+  const fill: Record<string, string> = { D: '#2b302e', W: '#ffffff', B: '#2c4bff', H: '#2f7d6e' };
   const px: React.ReactNode[] = [];
   rows.forEach((row, y) => {
     [...row].forEach((ch, x) => {
@@ -131,11 +145,15 @@ function SlimeSprite({ rows }: { rows: string[] }) {
   return <svg viewBox="0 0 12 10" width="26" height="22" shapeRendering="crispEdges">{px}</svg>;
 }
 
-function Mascot() {
+function Mascot({ playing, bpm }: { playing: boolean; bpm: number }) {
   return (
-    <span className="mascot" title="hi!">
-      <span className="mascot-base"><SlimeSprite rows={SLIME_BASE} /></span>
-      <span className="mascot-happy"><SlimeSprite rows={SLIME_HAPPY} /></span>
+    <span
+      className={`mascot${playing ? ' dancing' : ''}`}
+      style={playing ? { animationDuration: `${60 / Math.max(40, bpm)}s` } : undefined}
+      title="hi!"
+    >
+      <span className="mascot-base"><SlimeSprite rows={playing ? SLIME_PHONES : SLIME_BASE} /></span>
+      <span className="mascot-happy"><SlimeSprite rows={playing ? SLIME_PHONES_HAPPY : SLIME_HAPPY} /></span>
     </span>
   );
 }
@@ -152,12 +170,6 @@ const GrooveIcon = () => (
     <circle cx="5" cy="3.5" r="1.6" fill="var(--paper)" />
     <circle cx="9.5" cy="7" r="1.6" fill="var(--paper)" />
     <circle cx="4" cy="10.5" r="1.6" fill="var(--paper)" />
-  </svg>
-);
-const BookIcon = () => (
-  <svg className="sec-ic" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round">
-    <path d="M2 2.5h7.5a2 2 0 0 1 2 2v7H4a2 2 0 0 1-2-2v-7Z" />
-    <path d="M4.5 5h4.5M4.5 7.5h4.5" />
   </svg>
 );
 
@@ -492,7 +504,7 @@ export default function App() {
   return (
     <div className="app">
       <header className="topbar">
-        <div className="wordmark"><Mascot /> QUICK LEAD SHEET</div>
+        <div className="wordmark"><Mascot playing={playing} bpm={tempo} /> QUICK LEAD SHEET</div>
         <div className="title-wrap">
           <input
             className="song-title"
@@ -502,6 +514,23 @@ export default function App() {
             spellCheck={false}
           />
         </div>
+        <button className="btn sm" onClick={share} title="Copy a link that opens this exact song & settings">
+          {copied ? 'Link copied!' : 'Share'}
+        </button>
+        <Dropdown
+          value={null}
+          placeholder="Export"
+          options={[
+            { value: 'midi', label: 'MIDI (RH / LH tracks)' },
+            { value: 'png', label: 'PNG image' },
+            { value: 'pdf', label: 'PDF (print dialog)' },
+          ]}
+          onChange={v => {
+            if (v === 'midi') exportMidi();
+            else if (v === 'png') exportPng();
+            else window.print();
+          }}
+        />
       </header>
 
       <div className="body">
@@ -530,7 +559,7 @@ export default function App() {
               </div>
             )}
             <div className="row" style={{ marginTop: 8 }}>
-              <span className="row-label with-ic" title="Load an example progression (sets chords, key, groove & tempo)"><BookIcon /> Example</span>
+              <span className="row-label" title="Load an example progression (sets chords, key, groove & tempo)">Example</span>
               <Dropdown
                 value={null}
                 placeholder="Load…"
@@ -735,25 +764,6 @@ export default function App() {
             </div>
 
             <div className="spacer" />
-
-            <Dropdown
-              value={null}
-              placeholder={copied ? 'Link copied!' : 'Share / Export'}
-              options={[
-                { value: 'share', label: 'Copy share link' },
-                { value: 'midi', label: 'MIDI (RH / LH tracks)' },
-                { value: 'png', label: 'PNG image' },
-                { value: 'pdf', label: 'PDF (print dialog)' },
-              ]}
-              onChange={v => {
-                if (v === 'share') share();
-                else if (v === 'midi') exportMidi();
-                else if (v === 'png') exportPng();
-                else window.print();
-              }}
-            />
-
-            <div className="divider" />
 
             <div className="tabs">
               <button className={`tab${tab === 'lead' ? ' active' : ''}`} onClick={() => setTab('lead')}>Lead Sheet</button>

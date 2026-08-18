@@ -94,7 +94,17 @@ body::after {
 .mascot:hover .mascot-base { opacity: 0; }
 .mascot:hover .mascot-happy { opacity: 1; }
 
-.mascot:hover { animation: mascot-hop 0.45s ease; }
+.mascot:not(.dancing):hover { animation: mascot-hop 0.45s ease; }
+
+.mascot.dancing {
+  transform-origin: bottom center;
+  animation: mascot-dance 0.6s infinite ease-in-out;
+}
+
+@keyframes mascot-dance {
+  0%, 100% { transform: translateY(0) scaleY(0.9) scaleX(1.08); }
+  45% { transform: translateY(-5px) scaleY(1.05) scaleX(0.96); }
+}
 
 @keyframes mascot-hop {
   0%, 100% { transform: translateY(0); }
