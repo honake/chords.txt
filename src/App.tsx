@@ -354,6 +354,17 @@ export default function App() {
     [styleId, settingsRaw],
   );
   const [tempo, setTempo] = useState(initial?.b ?? DEFAULT_PRESET.tempo);
+  // free-typing tempo field: hold raw text while editing, clamp on commit
+  const [tempoText, setTempoText] = useState(String(initial?.b ?? DEFAULT_PRESET.tempo));
+  useEffect(() => { setTempoText(String(tempo)); }, [tempo]);
+  const commitTempo = () => {
+    const n = Number(tempoText);
+    const v = tempoText.trim() === '' || Number.isNaN(n)
+      ? tempo
+      : Math.max(30, Math.min(300, Math.round(n)));
+    setTempo(v);
+    setTempoText(String(v));
+  };
   const [seed, setSeed] = useState(initial?.d ?? 1);
   const [tab, setTab] = useState<'lead' | 'piano'>('piano');
   const [playing, setPlaying] = useState(false);
@@ -846,10 +857,17 @@ export default function App() {
               <input
                 className="tempo-input"
                 type="number"
-                min={40}
-                max={240}
-                value={tempo}
-                onChange={e => setTempo(Math.max(30, Math.min(300, Number(e.target.value) || 120)))}
+                min={30}
+                max={300}
+                value={tempoText}
+                onChange={e => {
+                  const t = e.target.value;
+                  setTempoText(t);
+                  const n = Number(t);
+                  if (t.trim() !== '' && n >= 30 && n <= 300) setTempo(Math.round(n));
+                }}
+                onBlur={commitTempo}
+                onKeyDown={e => { if (e.key === 'Enter') (e.target as HTMLInputElement).blur(); }}
               />
             </div>
 
