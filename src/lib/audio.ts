@@ -263,6 +263,11 @@ class EPSynth {
     const end = when + dur;
     const stopAt = end + t.release * 6 + 0.4;
     const oscs: OscillatorNode[] = [];
+    // free the per-note chain once it has rung out — without this, long
+    // sessions and offline renders accumulate every note's nodes forever
+    const cleanup = () => {
+      try { out.disconnect(); filt.disconnect(); panner.disconnect(); } catch { /* already gone */ }
+    };
 
     if (t.engine === 'sample' && grandBuffers.size > 0) {
       // nearest sample, repitched
@@ -285,6 +290,7 @@ class EPSynth {
       g.setTargetAtTime(0.0001, end, 0.12);
       src.start(when);
       src.stop(stopAt + 1.5);
+      src.onended = cleanup;
     } else if (t.engine === 'ep' || t.engine === 'sample') {
       filt.frequency.value = Math.min(12000, t.filterBase + v * t.filterVel + f * 2.0);
 
@@ -465,6 +471,7 @@ class EPSynth {
       o.start(when);
       o.stop(stopAt);
     }
+    if (oscs.length > 0) oscs[0].onended = cleanup;
   }
 }
 
@@ -474,53 +481,78 @@ function encodeWav(buf: AudioBuffer): Blob {
   const ch = buf.numberOfChannels;
   const len = buf.length;
   const rate = buf.sampleRate;
-  const bytes = 44 + len * ch * 2;
-  const ab = new ArrayBuffer(bytes);
-  const dv = new DataView(ab);
+  const dataBytes = len * ch * 2;
+  const header = new ArrayBuffer(44);
+  const dv = new DataView(header);
   const w = (off: number, s: string) => { for (let i = 0; i < s.length; i++) dv.setUint8(off + i, s.charCodeAt(i)); };
-  w(0, 'RIFF'); dv.setUint32(4, bytes - 8, true); w(8, 'WAVE');
+  w(0, 'RIFF'); dv.setUint32(4, 36 + dataBytes, true); w(8, 'WAVE');
   w(12, 'fmt '); dv.setUint32(16, 16, true); dv.setUint16(20, 1, true); dv.setUint16(22, ch, true);
   dv.setUint32(24, rate, true); dv.setUint32(28, rate * ch * 2, true); dv.setUint16(32, ch * 2, true); dv.setUint16(34, 16, true);
-  w(36, 'data'); dv.setUint32(40, len * ch * 2, true);
-  let off = 44;
+  w(36, 'data'); dv.setUint32(40, dataBytes, true);
+  // interleave via Int16Array (little-endian on every supported platform)
+  const pcm = new Int16Array(len * ch);
   const chans = Array.from({ length: ch }, (_, c) => buf.getChannelData(c));
-  for (let i = 0; i < len; i++) {
+  for (let i = 0, j = 0; i < len; i++) {
     for (let c = 0; c < ch; c++) {
-      const s = Math.max(-1, Math.min(1, chans[c][i]));
-      dv.setInt16(off, s < 0 ? s * 0x8000 : s * 0x7fff, true);
-      off += 2;
+      let s = chans[c][i];
+      s = s < -1 ? -1 : s > 1 ? 1 : s;
+      pcm[j++] = s < 0 ? s * 0x8000 : s * 0x7fff;
     }
   }
-  return new Blob([ab], { type: 'audio/wav' });
+  return new Blob([header, pcm.buffer], { type: 'audio/wav' });
 }
 
 /** Bounce the song offline through the same synth chain → 44.1k stereo 16-bit WAV. */
 export async function renderWav(song: Song, bpm: number, toneId: ToneId): Promise<Blob> {
   const tone = TONES.find(t => t.id === toneId) ?? TONES[0];
   const secPerBeat = 60 / bpm;
-  const sched = song.events.map(e => {
+  const humanize = song.settings.humanize;
+  const lead = 0.05;              // pre-roll so the first attack isn't clipped
+  const tail = 2.2;               // reverb/release tail
+  const rate = 44100;
+  const total = lead + song.bars.length * 4 * secPerBeat + tail;
+  // resolve final (jittered) start times up front
+  const notes = song.events.map(e => {
     const startBeat = gridToBeats(e.start, song.settings);
     const endBeat = gridToBeats(e.start + e.d, song.settings);
+    const jitter = (Math.random() - 0.5) * 2 * humanize * 0.011;
     return {
-      time: startBeat * secPerBeat,
+      when: Math.max(0, lead + startBeat * secPerBeat + jitter),
       dur: Math.max(0.07, (endBeat - startBeat) * secPerBeat - 0.02),
       midi: e.midi,
       vel: e.vel,
       pan: e.hand === 'lh' ? -0.22 : 0.18,
     };
   });
-  if (sched.length === 0) throw new Error('nothing to render');
-  const lead = 0.05;              // pre-roll so the first attack isn't clipped
-  const tail = 2.2;               // reverb/release tail
-  const rate = 44100;
-  const total = lead + song.bars.length * 4 * secPerBeat + tail;
+  if (notes.length === 0) throw new Error('nothing to render');
   const ctx = new OfflineAudioContext(2, Math.ceil(total * rate), rate);
   if (tone.engine === 'sample') await loadGrand(ctx);
   const synth = new EPSynth(ctx, tone);
-  const humanize = song.settings.humanize;
-  for (const ev of sched) {
-    const jitter = (Math.random() - 0.5) * 2 * humanize * 0.011;
-    synth.note(ev.midi, ev.vel, Math.max(0, lead + ev.time + jitter), ev.dur, ev.pan);
+  // Schedule in short chunks via suspend/resume instead of all at once:
+  // creating every note's node chain up front means the graph carries
+  // thousands of live nodes for the whole render, which made long songs
+  // take minutes. Chunking (plus the note-end cleanup in EPSynth) keeps
+  // only the currently sounding notes in the graph.
+  const CHUNK = 2; // seconds
+  const chunks = new Map<number, typeof notes>();
+  for (const n of notes) {
+    const g = Math.floor(n.when / CHUNK);
+    if (!chunks.has(g)) chunks.set(g, []);
+    chunks.get(g)!.push(n);
+  }
+  const play = (list: typeof notes) => {
+    for (const n of list) synth.note(n.midi, n.vel, n.when, n.dur, n.pan);
+  };
+  for (const [g, list] of chunks) {
+    const at = g * CHUNK;
+    if (g === 0 || at >= total - 0.1) {
+      play(list);
+    } else {
+      void ctx.suspend(at).then(() => {
+        play(list);
+        void ctx.resume();
+      });
+    }
   }
   const rendered = await ctx.startRendering();
   return encodeWav(rendered);
