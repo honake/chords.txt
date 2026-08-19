@@ -6,7 +6,7 @@ function midiToFreq(m: number): number {
   return 440 * Math.pow(2, (m - 69) / 12);
 }
 
-function makeImpulse(ctx: AudioContext, seconds: number, decay: number): AudioBuffer {
+function makeImpulse(ctx: BaseAudioContext, seconds: number, decay: number): AudioBuffer {
   const rate = ctx.sampleRate;
   const len = Math.floor(rate * seconds);
   const buf = ctx.createBuffer(2, len, rate);
@@ -108,22 +108,23 @@ const GRAND_NOTES: [string, number][] = [
   ['C6', 84], ['Ds6', 87],
 ];
 const grandBuffers = new Map<number, AudioBuffer>();
-let grandLoadStarted = false;
+let grandLoad: Promise<void> | null = null;
 
-function loadGrand(ctx: AudioContext) {
-  if (grandLoadStarted) return;
-  grandLoadStarted = true;
-  for (const [name, midi] of GRAND_NOTES) {
-    fetch(GRAND_BASE + name + '.mp3')
-      .then(r => r.arrayBuffer())
-      .then(buf => ctx.decodeAudioData(buf))
-      .then(decoded => { grandBuffers.set(midi, decoded); })
-      .catch(() => { /* stay on the FM fallback for this note */ });
+function loadGrand(ctx: BaseAudioContext): Promise<void> {
+  if (!grandLoad) {
+    grandLoad = Promise.all(GRAND_NOTES.map(([name, midi]) =>
+      fetch(GRAND_BASE + name + '.mp3')
+        .then(r => r.arrayBuffer())
+        .then(buf => ctx.decodeAudioData(buf))
+        .then(decoded => { grandBuffers.set(midi, decoded); })
+        .catch(() => { /* stay on the FM fallback for this note */ }),
+    )).then(() => undefined);
   }
+  return grandLoad;
 }
 
 class EPSynth {
-  ctx: AudioContext;
+  ctx: BaseAudioContext;
   master: GainNode;
   input: GainNode;
   tone: ToneDef;
@@ -131,7 +132,7 @@ class EPSynth {
   private pulseWave: PeriodicWave | null = null;
   private noiseBuf: AudioBuffer | null = null;
 
-  constructor(ctx: AudioContext, tone: ToneDef) {
+  constructor(ctx: BaseAudioContext, tone: ToneDef) {
     this.ctx = ctx;
     this.tone = tone;
     if (tone.engine === 'sample') loadGrand(ctx);
@@ -467,9 +468,67 @@ class EPSynth {
   }
 }
 
+// ---------- offline render → WAV ----------
+
+function encodeWav(buf: AudioBuffer): Blob {
+  const ch = buf.numberOfChannels;
+  const len = buf.length;
+  const rate = buf.sampleRate;
+  const bytes = 44 + len * ch * 2;
+  const ab = new ArrayBuffer(bytes);
+  const dv = new DataView(ab);
+  const w = (off: number, s: string) => { for (let i = 0; i < s.length; i++) dv.setUint8(off + i, s.charCodeAt(i)); };
+  w(0, 'RIFF'); dv.setUint32(4, bytes - 8, true); w(8, 'WAVE');
+  w(12, 'fmt '); dv.setUint32(16, 16, true); dv.setUint16(20, 1, true); dv.setUint16(22, ch, true);
+  dv.setUint32(24, rate, true); dv.setUint32(28, rate * ch * 2, true); dv.setUint16(32, ch * 2, true); dv.setUint16(34, 16, true);
+  w(36, 'data'); dv.setUint32(40, len * ch * 2, true);
+  let off = 44;
+  const chans = Array.from({ length: ch }, (_, c) => buf.getChannelData(c));
+  for (let i = 0; i < len; i++) {
+    for (let c = 0; c < ch; c++) {
+      const s = Math.max(-1, Math.min(1, chans[c][i]));
+      dv.setInt16(off, s < 0 ? s * 0x8000 : s * 0x7fff, true);
+      off += 2;
+    }
+  }
+  return new Blob([ab], { type: 'audio/wav' });
+}
+
+/** Bounce the song offline through the same synth chain → 44.1k stereo 16-bit WAV. */
+export async function renderWav(song: Song, bpm: number, toneId: ToneId): Promise<Blob> {
+  const tone = TONES.find(t => t.id === toneId) ?? TONES[0];
+  const secPerBeat = 60 / bpm;
+  const sched = song.events.map(e => {
+    const startBeat = gridToBeats(e.start, song.settings);
+    const endBeat = gridToBeats(e.start + e.d, song.settings);
+    return {
+      time: startBeat * secPerBeat,
+      dur: Math.max(0.07, (endBeat - startBeat) * secPerBeat - 0.02),
+      midi: e.midi,
+      vel: e.vel,
+      pan: e.hand === 'lh' ? -0.22 : 0.18,
+    };
+  });
+  if (sched.length === 0) throw new Error('nothing to render');
+  const lead = 0.05;              // pre-roll so the first attack isn't clipped
+  const tail = 2.2;               // reverb/release tail
+  const rate = 44100;
+  const total = lead + song.bars.length * 4 * secPerBeat + tail;
+  const ctx = new OfflineAudioContext(2, Math.ceil(total * rate), rate);
+  if (tone.engine === 'sample') await loadGrand(ctx);
+  const synth = new EPSynth(ctx, tone);
+  const humanize = song.settings.humanize;
+  for (const ev of sched) {
+    const jitter = (Math.random() - 0.5) * 2 * humanize * 0.011;
+    synth.note(ev.midi, ev.vel, Math.max(0, lead + ev.time + jitter), ev.dur, ev.pan);
+  }
+  const rendered = await ctx.startRendering();
+  return encodeWav(rendered);
+}
+
 // ---------- metronome click ----------
 
-function scheduleClick(ctx: AudioContext, when: number, accent: boolean, dest: AudioNode) {
+function scheduleClick(ctx: BaseAudioContext, when: number, accent: boolean, dest: AudioNode) {
   const osc = ctx.createOscillator();
   osc.type = 'sine';
   osc.frequency.value = accent ? 1700 : 1150;

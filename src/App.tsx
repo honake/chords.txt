@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { KEYS, pcOfKey, keyForPc, transposeSymbol, type KeyName } from './lib/theory';
 import { STYLES, FEELS, getStyle, type StyleId, type GrooveSettings, type Feel } from './lib/styles';
 import { parseProgression, generateSong } from './lib/generate';
-import { Player, TONES, type ToneId } from './lib/audio';
+import { Player, TONES, renderWav, type ToneId } from './lib/audio';
 import { songToMidi, downloadBlob } from './lib/midi';
 import { ScoreView } from './components/ScoreView';
 import petalumaUrl from './assets/fonts/PetalumaScript.otf';
@@ -519,6 +519,18 @@ export default function App() {
     downloadBlob(songToMidi(song, tempo, title), `${safeName(title)}.mid`, 'audio/midi');
   };
 
+  const [bouncing, setBouncing] = useState(false);
+  const exportWav = async () => {
+    if (!song || bouncing) return;
+    setBouncing(true);
+    try {
+      const blob = await renderWav(song, tempo, tone);
+      downloadBlob(blob, `${safeName(title)}.wav`, 'audio/wav');
+    } finally {
+      setBouncing(false);
+    }
+  };
+
   const exportPng = async () => {
     const svgs = [...(scoreRef.current?.querySelectorAll('svg') ?? [])];
     const svg = svgs[0];
@@ -620,11 +632,13 @@ export default function App() {
           placeholder={<ExportIcon />}
           options={[
             { value: 'midi', label: 'MIDI (RH / LH tracks)' },
+            { value: 'wav', label: bouncing ? 'WAV audio (rendering…)' : 'WAV audio' },
             { value: 'png', label: 'PNG image' },
             { value: 'pdf', label: 'PDF (print dialog)' },
           ]}
           onChange={v => {
             if (v === 'midi') exportMidi();
+            else if (v === 'wav') exportWav();
             else if (v === 'png') exportPng();
             else window.print();
           }}
@@ -927,7 +941,7 @@ export default function App() {
                     <tr><td><b>Groove</b></td><td>Styled comping (Jazz / Neo-Soul / Pop / Ballad) with voice leading, tensions, feels from swing to shuffled 16ths, and musical fills.</td></tr>
                     <tr><td><b>Kime</b></td><td>Anticipations (<code>&gt;C7</code>), stabs (<code>C7!</code>) and rhythm figures (<code>[3-3-10]</code>) for band-style hits.</td></tr>
                     <tr><td><b>Play</b></td><td>In-browser playback with several keyboard tones, metronome, looping, and click-to-seek on the score.</td></tr>
-                    <tr><td><b>Share</b></td><td>Export MIDI, PNG or print-ready PDF; share any song as a URL.</td></tr>
+                    <tr><td><b>Share</b></td><td>Export MIDI, WAV audio, PNG or print-ready PDF; share any song as a URL.</td></tr>
                   </tbody>
                 </table>
                 <p>Free, no sign-up — everything runs in your browser.</p>
