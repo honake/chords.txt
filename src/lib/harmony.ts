@@ -17,10 +17,9 @@ interface SegLite { chord: Chord; sixteenths: number }
 
 const MAJOR_SCALE = [0, 2, 4, 5, 7, 9, 11];
 
-/** Infer the best major key: diatonic fit weighted by duration + cadence bonuses. */
-export function inferKey(segs: SegLite[]): number {
-  let bestKey = 0;
-  let bestScore = -Infinity;
+/** Score all 12 major keys: diatonic fit weighted by duration + cadence bonuses. */
+function keyScores(segs: SegLite[]): number[] {
+  const scores: number[] = [];
   for (let k = 0; k < 12; k++) {
     const scale = new Set(MAJOR_SCALE.map(iv => (k + iv) % 12));
     let score = 0;
@@ -34,7 +33,11 @@ export function inferKey(segs: SegLite[]): number {
       const domish = (c: SegLite['chord']) =>
         c.quality === 'dom' || (c.quality === 'sus' && c.tones.includes(10));
       if (next) {
-        if (domish(s.chord) && s.chord.root === (k + 7) % 12 && next.chord.root === k) score += 24; // V7 → I
+        // V7 → I needs a major-ish tonic: V7 → i(min) is just as likely a
+        // secondary dominant (A7 → Dm in C), which must not drag the key along
+        const majorish = next.chord.quality !== 'min' && next.chord.quality !== 'minmaj' &&
+          next.chord.quality !== 'dim' && next.chord.quality !== 'hdim';
+        if (domish(s.chord) && s.chord.root === (k + 7) % 12 && next.chord.root === k && majorish) score += 24; // V7 → I
         if (s.chord.root === (k + 2) % 12 && s.chord.quality === 'min' &&
             next.chord.root === (k + 7) % 12 && domish(next.chord)) score += 12; // ii → V
       }
@@ -44,18 +47,56 @@ export function inferKey(segs: SegLite[]): number {
       }
       if (i === 0 && s.chord.root === k) score += 6;
     });
-    if (score > bestScore) { bestScore = score; bestKey = k; }
+    scores.push(score);
   }
-  return bestKey;
+  return scores;
 }
 
-/** Analyze every segment in context. */
-export function analyzeProgression(segs: SegLite[]): ChordAnalysis[] {
+/** Infer the best major key for a progression. */
+export function inferKey(segs: SegLite[]): number {
+  const scores = keyScores(segs);
+  return scores.indexOf(Math.max(...scores));
+}
+
+/**
+ * Analyze every segment in context.
+ * sectionStarts (segment indices) split the song into key regions: each section
+ * infers its own key, so a chorus that modulates doesn't drag the verse's
+ * analysis with it (e.g. an Eb chorus turning the C-major iii chord's avoided
+ * 9th back on). Key changes are sticky: a section keeps the previous section's
+ * key unless its own key is decisively better — a short bridge full of
+ * secondary dominants is ambiguous and should read in the surrounding key,
+ * while a real modulation wins by a wide margin.
+ */
+export function analyzeProgression(segs: SegLite[], sectionStarts: number[] = []): ChordAnalysis[] {
   if (segs.length === 0) return [];
-  const key = inferKey(segs);
-  const diatonic = new Set(MAJOR_SCALE.map(iv => (key + iv) % 12));
+  const starts = [...new Set([0, ...sectionStarts])]
+    .filter(i => i >= 0 && i < segs.length)
+    .sort((a, b) => a - b);
+  const sectionKeys: number[] = [];
+  starts.forEach((from, si) => {
+    const slice = segs.slice(from, starts[si + 1] ?? segs.length);
+    if (si === 0) {
+      sectionKeys.push(inferKey(slice));
+      return;
+    }
+    const prev = sectionKeys[si - 1];
+    const dur = slice.reduce((a, x) => a + x.sixteenths, 0);
+    const scores = keyScores(slice);
+    const best = scores.indexOf(Math.max(...scores));
+    // switch only when the new key beats the inherited one by >15% of the
+    // section's duration-weighted fit (2 bars minimum to modulate at all)
+    sectionKeys.push(dur >= 32 && scores[best] - scores[prev] > 0.15 * dur ? best : prev);
+  });
+  const keyOfSeg = (i: number) => {
+    let si = 0;
+    while (si + 1 < starts.length && starts[si + 1] <= i) si++;
+    return sectionKeys[si];
+  };
 
   return segs.map((s, i) => {
+    const key = keyOfSeg(i);
+    const diatonic = new Set(MAJOR_SCALE.map(iv => (key + iv) % 12));
     const c = s.chord;
     const deg = ((c.root - key) % 12 + 12) % 12;
     const next = segs[(i + 1) % segs.length]?.chord;

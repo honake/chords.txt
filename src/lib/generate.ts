@@ -284,9 +284,16 @@ export function generateSong(bars: BarSpec[], styleId: StyleId, seed: number, se
   let prevRoot: number | null = null;
   let lastPatternIdx = -1;
 
-  // chord-scale analysis, one entry per segment in reading order
+  // chord-scale analysis, one entry per segment in reading order;
+  // section marks become key-region boundaries so modulating sections analyze locally
   const flatForAnalysis = bars.flatMap(b => b.segments.map(s => ({ chord: s.chord, sixteenths: s.sixteenths })));
-  const analyses: ChordAnalysis[] = analyzeProgression(flatForAnalysis);
+  const segStartOfBar: number[] = [];
+  {
+    let acc = 0;
+    for (const b of bars) { segStartOfBar.push(acc); acc += b.segments.length; }
+  }
+  const sectionStarts = sections.map(s => segStartOfBar[s.bar]).filter((v): v is number => v != null);
+  const analyses: ChordAnalysis[] = analyzeProgression(flatForAnalysis, sectionStarts);
   let segCursor = 0;
   const nextAnalysis = () => analyses[segCursor++] ?? null;
   const harmonyOf = (a: ChordAnalysis | null) =>
