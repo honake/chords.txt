@@ -81,6 +81,49 @@ import { analyzeProgression, inferKey } from '../src/lib/harmony';
   if (an[3].func !== 'dominant' || !an[3].tensions.includes(14)) throw new Error('G7→C should be mixolydian');
   if (an[0].func !== 'tonic' || !an[0].avoid.includes(17)) throw new Error('Cmaj7 should avoid the 11th');
 }
+// key inference: blues tonic, minor progressions, and the classic sanity set
+{
+  const flat = (src: string) =>
+    parseProgression(src).bars.flatMap(b => b.segments.map(s => ({ chord: s.chord, sixteenths: s.sixteenths })));
+  const expectKey = (label: string, src: string, want: number) => {
+    const got = inferKey(flat(src));
+    if (got !== want) throw new Error(`key of ${label}: expected pc ${want}, got ${got}`);
+  };
+  // a dominant-quality tonic (12-bar blues) must not read as the IV's key
+  expectKey('C blues', '| C7 | F7 | C7 | C7 | F7 | F7 | C7 | C7 | G7 | F7 | C7 | G7 |', 0);
+  expectKey('G blues', '| G7 | C7 | G7 | G7 | C7 | C7 | G7 | G7 | D7 | C7 | G7 | D7 |', 7);
+  // a minor progression reads in the relative major (Am = vi, E7 = V7/vi)
+  expectKey('minor prog', '| Am7 | Dm7 | E7 | Am7 |', 0);
+  expectKey('minor triads', '| Am | Dm | E7 | Am |', 0);
+  // sanity set
+  expectKey('ii-V-I', '| Cmaj7 A7 | Dm7 G7 | Cmaj7 |', 0);
+  expectKey('pop', '| F | C | Dm | Bb |', 5);
+  expectKey('axis', '| E | B | C#m | A |', 4);
+  expectKey('dorian vamp', '| Dm7 G7 |', 0);
+}
+// per-section key regions: A/B stay in C (A7b9 is a secondary dominant, not a modulation),
+// the chorus modulates to Eb, the final A returns to C
+{
+  const src = [
+    '# A', '| Cmaj7 | Dm7 G7 | Em7 A7 | Dm7 G7 |',
+    '# B', '| Cmaj7 | A7b9 | Dm9 | G13 |',
+    '# Chorus', '| Ebmaj7 | Cm7 | Fm7 | Bb7 |', '| Ebmaj7 | Cm7 | Fm7 Bb7 | Ebmaj7 |',
+    '# A2', '| Cmaj7 | Dm7 G7 | Em7 G7 | Cmaj7 |',
+  ].join('\n');
+  const p = parseProgression(src);
+  const segs = p.bars.flatMap(b => b.segments.map(s => ({ chord: s.chord, sixteenths: s.sixteenths })));
+  const segStartOfBar: number[] = [];
+  let acc = 0;
+  for (const b of p.bars) { segStartOfBar.push(acc); acc += b.segments.length; }
+  const an = analyzeProgression(segs, p.sections.map(s => segStartOfBar[s.bar]));
+  const keyAt = (bar: number) => an[segStartOfBar[bar]].keyPc;
+  if (keyAt(0) !== 0) throw new Error('section A should be in C, got pc ' + keyAt(0));
+  if (keyAt(4) !== 0) throw new Error('section B should stay in C, got pc ' + keyAt(4));
+  if (keyAt(8) !== 3) throw new Error('chorus should modulate to Eb, got pc ' + keyAt(8));
+  if (keyAt(16) !== 0) throw new Error('section A2 should return to C, got pc ' + keyAt(16));
+  const a7 = an[segStartOfBar[5]];
+  if (a7.func !== 'secondary-dom') throw new Error('A7b9 in section B should be a secondary dominant, got ' + a7.func);
+}
 // sections
 {
   const p = parseProgression('# Verse\n| C | G |\n# Chorus\n| F | C |');
