@@ -259,12 +259,26 @@ function choosePattern(pool: Pattern[], settings: GrooveSettings, rnd: () => num
   const max = Math.max(...counts);
   const target = min + settings.density * (max - min);
   const wantsSixteenth = settings.feel === 'sixteenth' || settings.feel === 'shuffle16';
+  // 0..1 — on-beat, sustained comping reads as calm; sparse syncopated stabs don't
+  const calmOf = (p: Pattern) => {
+    const rh = p.hits.filter(h => h.hand === 'rh');
+    if (rh.length === 0) return 1;
+    const len = Math.max(...p.hits.map(h => h.t + h.d));
+    const onBeat = rh.filter(h => h.t % 4 === 0).length / rh.length;
+    const sustained = Math.min(1, rh.reduce((a, h) => a + h.d, 0) / Math.max(1, len));
+    return 0.5 * onBeat + 0.5 * sustained;
+  };
   const weights = pool.map((p, i) => {
     let w = 1 / (1 + Math.abs(p.hits.length - target));
     // swing 8ths lives on the swing grid — 16th-subdivision comps would break the feel entirely
-    if (p.sixteenth) w *= wantsSixteenth ? 2.2 : settings.feel === 'swing8' ? 0 : 0.35;
+    // the 16th-comp boost is a busyness thing — it should fade out with density
+    if (p.sixteenth) w *= wantsSixteenth ? 1 + 1.2 * settings.density : settings.feel === 'swing8' ? 0 : 0.35;
     else if (wantsSixteenth) w *= 0.8;
-    if (i === lastIdx && pool.length > 1) w *= 0.25;
+    // low density should mean SIMPLE, not sparse-but-spiky: a lone offbeat stab
+    // surrounded by silence reads as stumbling, not as space
+    w *= Math.pow(0.2 + 0.8 * calmOf(p), (1 - settings.density) * 3);
+    // …and repeating the same calm pattern is fine when the comping is meant to sit still
+    if (i === lastIdx && pool.length > 1) w *= 0.25 + 0.6 * (1 - settings.density);
     return w;
   });
   const total = weights.reduce((a, b) => a + b, 0);

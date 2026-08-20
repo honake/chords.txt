@@ -90,6 +90,8 @@ function voiceLead(intervals: number[], rootPc: number, low: number, high: numbe
       if (top > high + 4 || bottom < low - 1) continue;
       // never double a left-hand note at the exact same pitch
       if (notes.some(n => avoidNotes.includes(n))) continue;
+      // adjacent minor 2nds inside one hand pile the grit on — prefer spread rotations
+      for (let j = 0; j + 1 < notes.length; j++) if (notes[j + 1] - notes[j] === 1) cost += 6;
       if (prev && prev.length > 0) {
         // total voice movement: each new note to its nearest previous note
         for (const n of notes) {
@@ -117,6 +119,8 @@ function pickNine(c: Chord, ctx?: VoiceCtx): number | null {
   const a = anatomy(c);
   const written = a.tensions.find(t => t >= 13 && t <= 15);
   if (written != null) return written;
+  // mMaj7's color IS the major 7th — an automatic 9 just crowds it
+  if (c.quality === 'minmaj') return null;
   const h = ctx?.harmony;
   if (h) {
     const rec = h.tensions.find(t => t >= 13 && t <= 15);
@@ -190,8 +194,10 @@ function neosoulVoice(c: Chord, ctx: VoiceCtx) {
   if (a.third != null) ivs.push(a.third);
   if (seventh != null) ivs.push(seventh);
   else if (a.fifth != null) ivs.push(a.fifth);
+  // written 9ths (Fm9 …) always sound; the automatic color 9 needs tension >= 1
   const nine = pickNine(c, ctx);
-  if (nine != null) ivs.push(nine);
+  const writtenNine = a.tensions.some(t => t >= 13 && t <= 15);
+  if (nine != null && (writtenNine || ctx.tension >= 1)) ivs.push(nine);
   if (ctx.tension >= 1) {
     if (c.quality === 'min' && !ctx.harmony?.avoid.includes(17)) ivs.push(17);
     if (c.quality === 'dom') {
@@ -252,6 +258,9 @@ const V = (t: number, d: number, hand: Hand, kind: HitKind, vel: number): Hit =>
 
 const jazzPatterns: Record<number, Pattern[]> = {
   16: [
+    // calm pads — what low density should sound like
+    { hits: [V(0, 16, 'lh', 'chord', 58), V(0, 16, 'rh', 'chord', 66)] },
+    { hits: [V(0, 16, 'lh', 'chord', 60), V(0, 8, 'rh', 'chord', 70), V(8, 8, 'rh', 'chord', 64)] },
     { hits: [V(0, 16, 'lh', 'chord', 62), V(0, 6, 'rh', 'chord', 78), V(6, 10, 'rh', 'chord', 70)] },
     { hits: [V(0, 16, 'lh', 'chord', 60), V(0, 4, 'rh', 'chord', 76), V(6, 6, 'rh', 'chord', 68), V(12, 4, 'rh', 'chord', 72)] },
     { hits: [V(0, 8, 'lh', 'chord', 58), V(8, 8, 'lh', 'chord', 55), V(2, 4, 'rh', 'chord', 70), V(6, 6, 'rh', 'chord', 74), V(14, 2, 'rh', 'chord', 66)] },
@@ -265,6 +274,7 @@ const jazzPatterns: Record<number, Pattern[]> = {
     { hits: [V(0, 16, 'lh', 'chord', 60), V(2, 6, 'rh', 'chord', 72), V(8, 6, 'rh', 'chord', 68), V(14, 2, 'rh', 'chord', 74)] },
   ],
   8: [
+    { hits: [V(0, 8, 'lh', 'chord', 58), V(0, 8, 'rh', 'chord', 68)] },
     { hits: [V(0, 8, 'lh', 'chord', 60), V(0, 3, 'rh', 'chord', 76), V(6, 2, 'rh', 'chord', 68)] },
     { hits: [V(0, 8, 'lh', 'chord', 58), V(2, 6, 'rh', 'chord', 72)] },
     { hits: [V(0, 8, 'lh', 'chord', 60), V(0, 6, 'rh', 'chord', 74), V(6, 2, 'rh', 'chord', 66)] },
@@ -278,6 +288,9 @@ const jazzPatterns: Record<number, Pattern[]> = {
 
 const neosoulPatterns: Record<number, Pattern[]> = {
   16: [
+    // calm pads — what low density should sound like
+    { hits: [V(0, 16, 'lh', 'chord', 60), V(0, 16, 'rh', 'chord', 62)] },
+    { hits: [V(0, 10, 'lh', 'bass', 64), V(10, 6, 'lh', 'chord', 56), V(0, 8, 'rh', 'chord', 62), V(8, 8, 'rh', 'chord', 58)] },
     { hits: [V(0, 10, 'lh', 'bass', 66), V(10, 6, 'lh', 'chord', 58), V(0, 6, 'rh', 'chord', 66), V(6, 10, 'rh', 'chord', 62)] },
     { sixteenth: true, hits: [V(0, 16, 'lh', 'chord', 62), V(0, 7, 'rh', 'chord', 66), V(7, 9, 'rh', 'chord', 60)] },
     { sixteenth: true, hits: [V(0, 8, 'lh', 'bass', 66), V(8, 8, 'lh', 'chord', 58), V(0, 6, 'rh', 'chord', 64), V(6, 4, 'rh', 'chord', 60), V(10, 6, 'rh', 'chord', 63)] },
@@ -289,6 +302,7 @@ const neosoulPatterns: Record<number, Pattern[]> = {
     { sixteenth: true, hits: [V(0, 16, 'lh', 'chord', 60), V(0, 7, 'rh', 'chord', 63), V(7, 1, 'rh', 'chord', 52), V(8, 8, 'rh', 'chord', 61)] },
   ],
   8: [
+    { hits: [V(0, 8, 'lh', 'chord', 60), V(0, 8, 'rh', 'chord', 62)] },
     { sixteenth: true, hits: [V(0, 8, 'lh', 'chord', 62), V(0, 3, 'rh', 'chord', 64), V(3, 5, 'rh', 'chord', 60)] },
     { hits: [V(0, 8, 'lh', 'bass', 64), V(0, 6, 'rh', 'chord', 63), V(6, 2, 'rh', 'chord', 58)] },
     { hits: [V(0, 8, 'lh', 'chord', 62), V(2, 6, 'rh', 'chord', 62)] },
@@ -301,6 +315,9 @@ const neosoulPatterns: Record<number, Pattern[]> = {
 
 const popPatterns: Record<number, Pattern[]> = {
   16: [
+    // calm pads — what low density should sound like
+    { hits: [V(0, 16, 'lh', 'chord', 70), V(0, 16, 'rh', 'chord', 72)] },
+    { hits: [V(0, 16, 'lh', 'chord', 70), V(0, 8, 'rh', 'chord', 74), V(8, 8, 'rh', 'chord', 70)] },
     { hits: [V(0, 16, 'lh', 'chord', 72), V(0, 6, 'rh', 'chord', 78), V(6, 6, 'rh', 'chord', 74), V(12, 4, 'rh', 'chord', 76)] },
     { hits: [V(0, 8, 'lh', 'chord', 72), V(8, 8, 'lh', 'chord', 68), V(0, 4, 'rh', 'chord', 78), V(4, 4, 'rh', 'chord', 72), V(8, 4, 'rh', 'chord', 75), V(12, 4, 'rh', 'chord', 72)] },
     { hits: [V(0, 16, 'lh', 'chord', 70), V(0, 8, 'rh', 'chord', 76), V(8, 6, 'rh', 'chord', 72), V(14, 2, 'rh', 'chord', 70)] },
@@ -319,6 +336,7 @@ const popPatterns: Record<number, Pattern[]> = {
 
 const balladPatterns: Record<number, Pattern[]> = {
   16: [
+    { hits: [V(0, 16, 'lh', 'chord', 60), V(0, 16, 'rh', 'chord', 60)] },
     { hits: [V(0, 16, 'lh', 'chord', 62), ...[0, 2, 4, 6, 8, 10, 12, 14].map(t => V(t, 2, 'rh', 'arp', 60))] },
     { hits: [V(0, 4, 'lh', 'bass', 64), V(4, 4, 'lh', 'arp', 56), V(8, 4, 'lh', 'arp', 58), V(12, 4, 'lh', 'arp', 54), V(0, 16, 'rh', 'chord', 62)] },
     { hits: [V(0, 16, 'lh', 'chord', 60), V(0, 8, 'rh', 'chord', 62), V(8, 8, 'rh', 'chord', 58)] },
